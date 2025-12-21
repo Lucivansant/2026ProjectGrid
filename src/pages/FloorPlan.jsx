@@ -1396,7 +1396,7 @@ const FloorPlan = () => {
                             fill="#4338ca" 
                             align="center"
                             rotation={Math.atan2(newWall.y2 - newWall.y1, newWall.x2 - newWall.x1) * 180 / Math.PI} 
-                            offsetY={-15}
+                            offsetY={-60} // Mais alto para não ficar embaixo do dedo
                             offsetX={20} 
                         />
                         {/* Indicador de Ângulo (Esquadro) */}
@@ -1409,9 +1409,16 @@ const FloorPlan = () => {
                                 fontStyle="bold"
                                 fill="#059669" 
                                 align="center"
-                                offsetY={-20} // Em cima do ponto inicial
+                                offsetY={-60} // Mais alto para não ficar embaixo do dedo
                             />
                         )}
+                        
+                        {/* Crosshair (Mira de Precisão no Mobile) */}
+                        <Group x={newWall.x2} y={newWall.y2}>
+                             <Line points={[-40, 0, 40, 0]} stroke="#ef4444" strokeWidth={1} dash={[4, 4]} />
+                             <Line points={[0, -40, 0, 40]} stroke="#ef4444" strokeWidth={1} dash={[4, 4]} />
+                             <Circle radius={3} stroke="#ef4444" strokeWidth={1} />
+                        </Group>
                     </Group>
                 )}
 
