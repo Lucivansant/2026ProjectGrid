@@ -233,7 +233,9 @@ const FloorPlan = () => {
 
   // --- Manipuladores de Eventos do Stage ---
 
-  const handleMouseDown = (e) => {
+  // --- Unified Pointer Events (Mouse, Touch, Pen/Stylus) ---
+  
+  const handlePointerDown = (e) => {
     // Deselect if clicking on empty stage (unless dragging a node)
     const clickedOnEmpty = e.target === e.target.getStage()
     if (clickedOnEmpty) {
@@ -241,86 +243,9 @@ const FloorPlan = () => {
        if (transformerRef.current) transformerRef.current.nodes([])
     }
 
-    // Implementação do início do desenho
+    // Inicio do desenho
     if (tool === 'wall') {
         const stage = e.target.getStage()
-        const point = stage.getPointerPosition()
-        // Ajusta para as coordenadas relativas do stage (considerando zoom/pan)
-        const x = (point.x - stagePos.x) / stageScale
-        const y = (point.y - stagePos.y) / stageScale
-        
-        isDrawing.current = true
-        setNewWall({
-            x1: x,
-            y1: y,
-            x2: x,
-            y2: y
-        })
-    }
-  }
-
-  const handleMouseMove = (e) => {
-    if (!isDrawing.current) return
-    
-    if (tool === 'wall' && newWall) {
-        const stage = e.target.getStage()
-        const point = stage.getPointerPosition()
-        const x = (point.x - stagePos.x) / stageScale
-        const y = (point.y - stagePos.y) / stageScale
-
-        // Snap simplificado
-        let targetX = x
-        let targetY = y
-        
-        // Se estiver perto da grid, snap
-        if (Math.abs(x % GRID_SIZE) < SNAP_THRESHOLD || Math.abs(x % GRID_SIZE) > (GRID_SIZE - SNAP_THRESHOLD)) {
-            targetX = snapToGrid(x)
-        }
-        if (Math.abs(y % GRID_SIZE) < SNAP_THRESHOLD || Math.abs(y % GRID_SIZE) > (GRID_SIZE - SNAP_THRESHOLD)) {
-            targetY = snapToGrid(y)
-        }
-
-        // Restrição ortogonal (Shift key logic could be added here)
-        // Por padrão, vamos facilitar linhas retas
-        if (Math.abs(targetX - newWall.x1) < 10) targetX = newWall.x1
-        if (Math.abs(targetY - newWall.y1) < 10) targetY = newWall.y1
-
-        setNewWall(prev => ({ ...prev, x2: targetX, y2: targetY }))
-    }
-  }
-
-  const handleMouseUp = () => {
-    if (isDrawing.current) {
-        isDrawing.current = false
-        if (tool === 'wall' && newWall) {
-             // Evita criar paredes de tamanho zero
-            if (newWall.x1 !== newWall.x2 || newWall.y1 !== newWall.y2) {
-                setWalls(prev => [...prev, { ...newWall, id: Date.now(), width: 6 }])
-            }
-            setNewWall(null)
-        }
-    }
-  }
-
-  // --- Touch Events Support (Tablet/Mobile) ---
-  const checkTouchTarget = (e) => {
-      // Verifica se clicou no stage vazio ou num transformer
-      const clickedOnEmpty = e.target === e.target.getStage()
-      if (clickedOnEmpty) {
-         setSelectedId(null)
-         if (transformerRef.current) transformerRef.current.nodes([])
-      }
-  }
-
-  const handleTouchStart = (e) => {
-    // Check selection logic manually since Konva click handling might vary
-    checkTouchTarget(e)
-
-    // Apenas inicia desenho de parede se a ferramenta estiver ativa
-    if (tool === 'wall') {
-        const stage = e.target.getStage()
-        // getPointerPosition works for touches too if configured? 
-        // Yes, Konva maps touch to pointer if not multi-touch.
         const point = stage.getPointerPosition()
         
         if (point) {
@@ -335,10 +260,10 @@ const FloorPlan = () => {
     }
   }
 
-  const handleTouchMove = (e) => {
-    // Prevent scrolling when drawing
+  const handlePointerMove = (e) => {
+    // Prevent scrolling on mobile/tablet when drawing
     if (tool === 'wall' && isDrawing.current) {
-        e.evt.preventDefault() // Important prevents page scroll
+        e.evt.preventDefault() // Crucial for S Pen / Touch to not scroll page
         
         const stage = e.target.getStage()
         const point = stage.getPointerPosition()
@@ -347,7 +272,7 @@ const FloorPlan = () => {
             const x = (point.x - stagePos.x) / stageScale
             const y = (point.y - stagePos.y) / stageScale
 
-            // Snap logic (duplicated from mouse move)
+            // Snap logic
             let targetX = x
             let targetY = y
             
@@ -367,7 +292,7 @@ const FloorPlan = () => {
     }
   }
 
-  const handleTouchEnd = () => {
+  const handlePointerUp = () => {
     if (isDrawing.current) {
         isDrawing.current = false
         if (tool === 'wall' && newWall) {
@@ -1132,12 +1057,9 @@ const FloorPlan = () => {
             scaleY={stageScale}
             x={stagePos.x}
             y={stagePos.y}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
             onWheel={handleWheel}
             ref={stageRef}
             draggable={tool === 'select'}
