@@ -388,7 +388,7 @@ const FloorPlan = () => {
                 if (comp.type === 'wireTag') {
                     setSelectedProps({
                         conductors: comp.properties?.conductors || 'FNT',
-                        gauge: comp.properties?.gauge || '2.5',
+                        gauge: comp.properties?.gauge !== undefined ? comp.properties.gauge : '',
                         power: '', circuit: '', elevation: 'low', wireType: 'normal'
                     })
                 } else {
