@@ -9,35 +9,61 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
  * Cliente centralizado para interação com os serviços de Autenticação e Banco de Dados do Supabase.
  * Utiliza variáveis de ambiente para configuração.
  */
-// Evita crash se as variáveis de ambiente não estiverem definidas (comum em deploy inicial na Vercel/Netlify)
-export const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : {
-        auth: {
-          getUser: async () => ({ data: { user: null }, error: null }),
-          getSession: async () => ({ data: { session: null }, error: null }),
-          onAuthStateChange: () => ({
-            data: { subscription: { unsubscribe: () => {} } },
-          }),
-          signInWithPassword: async () => ({
-            error: {
-              message:
-                "Supabase não configurado (Faltam variáveis de ambiente)",
-            },
-          }),
-          signUp: async () => ({
-            error: { message: "Supabase não configurado" },
-          }),
-          signOut: async () => ({ error: null }),
+// Função segura para inicializar o Supabase
+const initSupabase = () => {
+  try {
+    if (supabaseUrl && supabaseAnonKey) {
+      return createClient(supabaseUrl, supabaseAnonKey);
+    }
+  } catch (error) {
+    console.warn("Falha ao inicializar Supabase (verifique as credenciais):", error);
+  }
+
+  // Fallback (Mock) caso falhe ou não tenha chaves
+  return {
+    auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
+      getSession: async () => ({ data: { session: null }, error: null }),
+      onAuthStateChange: () => ({
+        data: { subscription: { unsubscribe: () => {} } },
+      }),
+      signInWithPassword: async () => ({
+        error: {
+          message:
+            "Supabase não configurado (Faltam variáveis de ambiente ou chaves inválidas)",
         },
-        from: () => ({
-          select: () => ({
-            eq: () => ({
-              single: async () => ({ data: null, error: null }),
-              data: [],
-              error: null,
-            }),
+      }),
+      signUp: async () => ({
+        error: { message: "Supabase não configurado" },
+      }),
+      signOut: async () => ({ error: null }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data: null, error: null }),
+          data: [],
+          error: null,
+        }),
+        order: () => ({
+          data: [],
+          error: null,
+        }),
+      }),
+      insert: () => ({ select: () => ({ data: null, error: null }) }),
+      update: () => ({ eq: () => ({ select: () => ({ data: null, error: null }) }) }),
+      delete: () => ({ eq: () => ({ data: null, error: null }) }),
+    }),
+    storage: {
+      from: () => ({
+        upload: async () => ({ data: null, error: null }),
+        getPublicUrl: () => ({ data: { publicUrl: "" } }),
+      }),
+    },
+  };
+};
+
+export const supabase = initSupabase();
             order: () => ({ data: [], error: null }),
             insert: async () => ({ data: null, error: null }),
             update: async () => ({ data: null, error: null }),
