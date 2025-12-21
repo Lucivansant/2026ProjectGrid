@@ -281,11 +281,12 @@ const FloorPlan = () => {
     // Inicio do desenho
     if (tool === 'wall') {
         const stage = e.target.getStage()
-        const point = stage.getPointerPosition()
+        // Use getRelativePointerPosition to handle Zoom/Pan automatically and correctly
+        const relativePos = stage.getRelativePointerPosition()
         
-        if (point) {
-            const x = (point.x - stagePos.x) / stageScale
-            const y = (point.y - stagePos.y) / stageScale
+        if (relativePos) {
+            const x = relativePos.x
+            const y = relativePos.y
             
             isDrawing.current = true
             setNewWall({
@@ -301,11 +302,11 @@ const FloorPlan = () => {
         e.evt.preventDefault() // Crucial for S Pen / Touch to not scroll page
         
         const stage = e.target.getStage()
-        const point = stage.getPointerPosition()
+        const relativePos = stage.getRelativePointerPosition()
         
-        if (point && newWall) {
-            const x = (point.x - stagePos.x) / stageScale
-            const y = (point.y - stagePos.y) / stageScale
+        if (relativePos && newWall) {
+            const x = relativePos.x
+            const y = relativePos.y
 
             // Free Draw (No Grid Snap)
             let targetX = x
