@@ -64,10 +64,4 @@ const initSupabase = () => {
 };
 
 export const supabase = initSupabase();
-            order: () => ({ data: [], error: null }),
-            insert: async () => ({ data: null, error: null }),
-            update: async () => ({ data: null, error: null }),
-            delete: async () => ({ data: null, error: null }),
-          }),
-        }),
-      };
+
