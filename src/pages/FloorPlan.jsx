@@ -64,6 +64,44 @@ const FloorPlan = () => {
   const stageRef = useRef(null)
   const isDrawing = useRef(false)
   const transformerRef = useRef(null)
+  const lastDist = useRef(0)
+  const lastCenter = useRef(null)
+
+  // ... existing code ...
+
+  // --- Multi-Touch Pinch Zoom ---
+  const handleTouchMoveStage = (e) => {
+      // Logic for Pinch Zoom (2 fingers)
+      const touch1 = e.evt.touches[0];
+      const touch2 = e.evt.touches[1];
+
+      if (touch1 && touch2) {
+          isDrawing.current = false // Stop drawing if pinching
+          e.evt.preventDefault(); // Stop browser zoom
+
+          const dist = Math.sqrt(
+              Math.pow(touch2.clientX - touch1.clientX, 2) +
+              Math.pow(touch2.clientY - touch1.clientY, 2)
+          );
+
+          if (!lastDist.current) {
+              lastDist.current = dist;
+          }
+
+          const scale = (stageScale * dist) / lastDist.current;
+          
+          // Limits
+          if (scale > 0.2 && scale < 5) {
+            setStageScale(scale);
+          }
+          
+          lastDist.current = dist;
+      }
+  }
+
+  const handleTouchEndStage = () => {
+      lastDist.current = 0;
+  }
 
   // Observer para redimensionamento
   useEffect(() => {
@@ -900,6 +938,29 @@ const FloorPlan = () => {
                     }
                 }
             }}
+            onTap={() => {
+                if (tool === 'select') {
+                    setSelectedId(comp.id)
+                } else if (tool === 'wire') {
+                    if (wiringStartId === null) {
+                        setWiringStartId(comp.id)
+                    } else {
+                        if (wiringStartId !== comp.id) {
+                            const newWire = {
+                                id: `wire-${Date.now()}`,
+                                startCompId: wiringStartId,
+                                endCompId: comp.id,
+                                controlOffset: { x: 0, y: 0 }, // Offset manual do ponto de controle
+                                type: 'normal',
+                                conductors: 'FNT', // Padrão
+                                gauge: '1.5' // Padrão
+                            }
+                            setWires(prev => [...prev, newWire])
+                            setWiringStartId(null)
+                        }
+                    }
+                }
+            }}
             onDragEnd={(e) => {
                 const node = e.target
                 const newX = node.x()
@@ -951,7 +1012,7 @@ const FloorPlan = () => {
   // --- Renderização ---
 
   return (
-    <div className="flex h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-100 relative">
+    <div className="flex h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-100 relative" style={{ touchAction: 'none' }}>
       
       {/* Barra de Ferramentas Esquerda (Compacta) */}
       <div className="absolute left-2 top-4 z-10 flex flex-col gap-1 bg-white p-1 rounded-lg shadow-lg border border-slate-200">
@@ -1060,6 +1121,8 @@ const FloorPlan = () => {
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onTouchMove={handleTouchMoveStage}
+            onTouchEnd={handleTouchEndStage}
             onWheel={handleWheel}
             ref={stageRef}
             draggable={tool === 'select'}
@@ -1090,6 +1153,9 @@ const FloorPlan = () => {
                                 strokeWidth={wall.width || 6}
                                 lineCap="square"
                                 onClick={() => {
+                                    if (tool === 'select') setSelectedId(wall.id.toString())
+                                }}
+                                onTap={() => {
                                     if (tool === 'select') setSelectedId(wall.id.toString())
                                 }}
                             />
@@ -1159,6 +1225,9 @@ const FloorPlan = () => {
                                 stroke="transparent"
                                 strokeWidth={12} // Área de clique maior
                                 onClick={() => {
+                                    if (tool === 'select') setSelectedId(wire.id)
+                                }}
+                                onTap={() => {
                                     if (tool === 'select') setSelectedId(wire.id)
                                 }}
                                 onMouseEnter={(e) => {
