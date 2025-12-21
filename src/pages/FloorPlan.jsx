@@ -364,6 +364,14 @@ const FloorPlan = () => {
     })
   }
 
+  const handleZoomIn = () => {
+      setStageScale(prev => Math.min(prev * 1.2, 5))
+  }
+
+  const handleZoomOut = () => {
+      setStageScale(prev => Math.max(prev / 1.2, 0.2))
+  }
+
   useEffect(() => {
     if (selectedId && transformerRef.current) {
       const stage = stageRef.current
@@ -454,7 +462,7 @@ const FloorPlan = () => {
             circuit: '1',  // Default
             elevation: 'low', // low (30cm), medium (1.2m), high (2m)
             conductors: 'FNT',
-            gauge: '2.5',
+            gauge: type === 'wireTag' ? '' : '2.5',
             arrowTarget: { x: 0, y: 30 }
         }
     }
@@ -1016,6 +1024,20 @@ const FloorPlan = () => {
       
       {/* Barra de Ferramentas Esquerda (Compacta) */}
       <div className="absolute left-2 top-4 z-10 flex flex-col gap-1 bg-white p-1 rounded-lg shadow-lg border border-slate-200">
+        {/* Zoom Controls */}
+        <ToolButton 
+            active={false} 
+            onClick={handleZoomIn} 
+            icon={ZoomIn} 
+            tooltip="Zoom In (+)" 
+        />
+        <ToolButton 
+            active={false} 
+            onClick={handleZoomOut} 
+            icon={ZoomOut} 
+            tooltip="Zoom Out (-)" 
+        />
+        <div className="h-px bg-slate-200 my-1"></div>
         <ToolButton 
             active={tool === 'select'} 
             onClick={() => setTool('select')} 
@@ -1130,6 +1152,22 @@ const FloorPlan = () => {
             <Layer>
                 {renderGrid()}
                 
+                {/* Wall Joints (Vertices) */}
+                {walls.map(wall => (
+                    <Group key={`j-${wall.id}`}>
+                        <Circle 
+                            x={wall.x1} y={wall.y1} 
+                            radius={(wall.width || 6) / 2} 
+                            fill={selectedId === wall.id.toString() ? "#4f46e5" : "#334155"} 
+                        />
+                        <Circle 
+                            x={wall.x2} y={wall.y2} 
+                            radius={(wall.width || 6) / 2} 
+                            fill={selectedId === wall.id.toString() ? "#4f46e5" : "#334155"} 
+                        />
+                    </Group>
+                ))}
+
                 {/* Paredes Desenhadas com Medidas */}
                 {walls.map((wall) => {
                     // Calcula centro e comprimento
