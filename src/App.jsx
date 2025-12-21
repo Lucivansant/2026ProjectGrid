@@ -13,7 +13,7 @@ import AppLayout from './components/layout/AppLayout'
 
 function App() {
   return (
-    <Router>
+    <Router basename="/2026ProjectGrid">
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
