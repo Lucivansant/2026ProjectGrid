@@ -310,22 +310,45 @@ const FloorPlan = () => {
             const x = (point.x - stagePos.x) / stageScale
             const y = (point.y - stagePos.y) / stageScale
 
-            // Snap logic
+            // Free Draw (No Grid Snap)
             let targetX = x
             let targetY = y
             
-            if (Math.abs(x % GRID_SIZE) < SNAP_THRESHOLD || Math.abs(x % GRID_SIZE) > (GRID_SIZE - SNAP_THRESHOLD)) {
-                targetX = snapToGrid(x)
-            }
-            if (Math.abs(y % GRID_SIZE) < SNAP_THRESHOLD || Math.abs(y % GRID_SIZE) > (GRID_SIZE - SNAP_THRESHOLD)) {
-                targetY = snapToGrid(y)
+            // Angle Snapping (Esquadro)
+            // Lógica: Se o ângulo atual estiver próximo de 0, 90, 180, 270 ou 45, snap.
+            const dx = x - newWall.x1
+            const dy = y - newWall.y1
+            const dist = Math.sqrt(dx*dx + dy*dy)
+            
+            let angle = Math.atan2(dy, dx) * 180 / Math.PI
+            if (angle < 0) angle += 360
+            
+            // Angles to snap to: 0, 45, 90, 135, 180, 225, 270, 315, 360
+            const snapAngles = [0, 45, 90, 135, 180, 225, 270, 315, 360]
+            const ANGLE_THRESHOLD = 5 // graus
+            
+            let snappedAngle = null
+            
+            for (let a of snapAngles) {
+                if (Math.abs(angle - a) < ANGLE_THRESHOLD || Math.abs(angle - a) > (360 - ANGLE_THRESHOLD)) {
+                    // Snap it!
+                    // Recalcula targetX/Y baseado na distancia e angulo snapado
+                    const rad = a * Math.PI / 180
+                    targetX = newWall.x1 + dist * Math.cos(rad)
+                    targetY = newWall.y1 + dist * Math.sin(rad)
+                    snappedAngle = a % 360
+                    break
+                }
             }
 
-            // Ortogonal
-            if (Math.abs(targetX - newWall.x1) < 10) targetX = newWall.x1
-            if (Math.abs(targetY - newWall.y1) < 10) targetY = newWall.y1
+            // Ortogonal "Forçado" se muito próximo? Não, o snap angle já cuida disso.
 
-            setNewWall(prev => ({ ...prev, x2: targetX, y2: targetY }))
+            setNewWall(prev => ({ 
+                ...prev, 
+                x2: targetX, 
+                y2: targetY,
+                angleText: snappedAngle !== null ? `${snappedAngle}°` : null
+            }))
         }
     }
   }
@@ -1379,6 +1402,19 @@ const FloorPlan = () => {
                             offsetY={-15}
                             offsetX={20} 
                         />
+                        {/* Indicador de Ângulo (Esquadro) */}
+                        {newWall.angleText && (
+                             <Text 
+                                x={newWall.x1} 
+                                y={newWall.y1} 
+                                text={newWall.angleText} 
+                                fontSize={11} 
+                                fontStyle="bold"
+                                fill="#059669" 
+                                align="center"
+                                offsetY={-20} // Em cima do ponto inicial
+                            />
+                        )}
                     </Group>
                 )}
 
