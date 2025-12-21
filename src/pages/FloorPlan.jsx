@@ -264,10 +264,7 @@ const FloorPlan = () => {
     return <Group>{lines}</Group>
   }
 
-  // Função de Snap to Grid
-  const snapToGrid = (val) => {
-    return Math.round(val / GRID_SIZE) * GRID_SIZE
-  }
+
 
   // --- Manipuladores de Eventos do Stage ---
 
@@ -325,7 +322,7 @@ const FloorPlan = () => {
             
             // Angles to snap to: 0, 45, 90, 135, 180, 225, 270, 315, 360
             const snapAngles = [0, 45, 90, 135, 180, 225, 270, 315, 360]
-            const ANGLE_THRESHOLD = 5 // graus
+            const ANGLE_THRESHOLD = 3 // graus
             
             let snappedAngle = null
             
