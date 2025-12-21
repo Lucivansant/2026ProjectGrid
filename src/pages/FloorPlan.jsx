@@ -372,23 +372,34 @@ const FloorPlan = () => {
       setStageScale(prev => Math.max(prev / 1.2, 0.2))
   }
 
+  // --- Transformer Selection ---
   useEffect(() => {
-    if (selectedId && transformerRef.current) {
-      const stage = stageRef.current
-      const selectedNode = stage.findOne('.' + selectedId)
-      
-      if (selectedNode) {
-        transformerRef.current.nodes([selectedNode])
-        transformerRef.current.getLayer().batchDraw()
-        
-        // Sincroniza formulário com estado do objeto selecionado
+    if (transformerRef.current) {
+      if (selectedId) {
+          const stage = stageRef.current
+          const selectedNode = stage.findOne('.' + selectedId)
+          if (selectedNode) {
+            transformerRef.current.nodes([selectedNode])
+            transformerRef.current.getLayer().batchDraw()
+          } else {
+            transformerRef.current.nodes([])
+          }
+      } else {
+        transformerRef.current.nodes([])
+      }
+    }
+  }, [selectedId, components, walls, wires]) // Updates when objects move/change
+
+  // --- Form Sync (Only on Selection Change) ---
+  useEffect(() => {
+    if (selectedId) {
         if (selectedId.toString().startsWith('comp-')) {
             const comp = components.find(c => c.id === selectedId)
             if (comp) {
                 if (comp.type === 'wireTag') {
                     setSelectedProps({
                         conductors: comp.properties?.conductors || 'FNT',
-                        gauge: comp.properties?.gauge !== undefined ? comp.properties.gauge : '',
+                        gauge: (comp.properties?.gauge !== undefined && comp.properties?.gauge !== null) ? comp.properties.gauge : '',
                         power: '', circuit: '', elevation: 'low', wireType: 'normal'
                     })
                 } else {
@@ -403,17 +414,14 @@ const FloorPlan = () => {
              if (wire) {
                  setSelectedProps(prev => ({
                      ...prev,
-                     wireType: wire.type || 'normal', // normal (liso), underground (pontilhado)
+                     wireType: wire.type || 'normal',
                      conductors: wire.conductors || 'FNT',
-                     gauge: wire.gauge || '2.5'
+                     gauge: (wire.gauge !== undefined && wire.gauge !== null) ? wire.gauge : ''
                  }))
              }
         }
-      } else {
-        transformerRef.current.nodes([])
-      }
     }
-  }, [selectedId, components]) // Add components dep to update when dragging updates pos? No, mostly on select.
+  }, [selectedId]) // Only re-sync form when SELECTION changes, not every keystroke
 
   const updateSelectedProperty = (field, value) => {
     if (!selectedId) return
