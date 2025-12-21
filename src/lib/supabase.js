@@ -12,8 +12,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // Função segura para inicializar o Supabase
 const initSupabase = () => {
   try {
-    if (supabaseUrl && supabaseAnonKey) {
-      return createClient(supabaseUrl, supabaseAnonKey);
+    const url = supabaseUrl ? String(supabaseUrl).trim() : null;
+    const key = supabaseAnonKey ? String(supabaseAnonKey).trim() : null;
+
+    if (url && key && url.startsWith('http') && key.length > 20) {
+      return createClient(url, key);
+    } else {
+        console.warn('Supabase: Credenciais inválidas ou ausentes.');
     }
   } catch (error) {
     console.warn("Falha ao inicializar Supabase (verifique as credenciais):", error);
