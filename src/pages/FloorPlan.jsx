@@ -24,7 +24,8 @@ import {
   Download,
   Tag,
   Trash2,
-  FlipHorizontal
+  FlipHorizontal,
+  Ruler
 } from 'lucide-react'
 
 // Constantes
@@ -36,10 +37,11 @@ const SNAP_THRESHOLD = 10
  */
 const FloorPlan = () => {
   // --- Estados da Ferramenta ---
-  const [tool, setTool] = useState('select') // select, wall, wire, room
+  const [tool, setTool] = useState('select') // select, wall, wire, room, dimension
   const [showGrid, setShowGrid] = useState(true)
   const [stageScale, setStageScale] = useState(1)
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 })
+  const [pixelsPerMeter, setPixelsPerMeter] = useState(40) // Escala: 40px = 1m
   
   // Estado para tamanho do Stage (Responsivo)
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight })
@@ -49,6 +51,7 @@ const FloorPlan = () => {
   const [walls, setWalls] = useState([]) // Array de linhas {id, points: [x1,y1,x2,y2], width}
   const [components, setComponents] = useState([]) // Elementos elétricos {id, type, x, y, rotation, properties: {power, circuit, elevation}}
   const [wires, setWires] = useState([]) // Array de cabos {id, startCompId, endCompId}
+  const [dimensionsList, setDimensionsList] = useState([]) // Lista de Cotas {id, x1, y1, x2, y2}
   const [selectedId, setSelectedId] = useState(null) // ID do objeto selecionado
   
   // Estado para formulário de propriedades
@@ -56,6 +59,8 @@ const FloorPlan = () => {
 
   // Estado temporário para desenho em construção
   const [newWall, setNewWall] = useState(null) // Wall sendo desenhada atualmente
+  const [newDimension, setNewDimension] = useState(null) // Cota sendo desenhada
+  const [calibrationPoints, setCalibrationPoints] = useState([]) // Pontos para calibração [p1, p2]
   const [wiringStartId, setWiringStartId] = useState(null) // ID do componente onde o fio começou
   const [transformText, setTransformText] = useState('') // Texto de transformação (ex: ângulo)
   const [clipboard, setClipboard] = useState(null) // Para Copy/Paste
@@ -293,6 +298,51 @@ const FloorPlan = () => {
                 x1: x, y1: y, x2: x, y2: y
             })
         }
+    } else if (tool === 'dimension') {
+        const stage = e.target.getStage()
+        const relativePos = stage.getRelativePointerPosition()
+        
+        if (relativePos) {
+            const x = relativePos.x
+            const y = relativePos.y
+            
+            isDrawing.current = true
+            setNewDimension({
+                x1: x, y1: y, x2: x, y2: y
+            })
+        }
+    } else if (tool === 'calibrate') {
+        // Calibration Logic: Click 2 points
+        const stage = e.target.getStage()
+        const relativePos = stage.getRelativePointerPosition()
+        
+        if (relativePos) {
+             const newPoints = [...calibrationPoints, relativePos]
+             setCalibrationPoints(newPoints)
+             
+             if (newPoints.length === 2) {
+                 // Calculate distance and Prompt
+                 const p1 = newPoints[0]
+                 const p2 = newPoints[1]
+                 const distPixels = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
+                 
+                 // Small timeout to allow render
+                 setTimeout(() => {
+                     const userDist = window.prompt(`Distância detectada: ${distPixels.toFixed(2)}px.\nQual a distância real em METROS?`, "1.0")
+                     if (userDist && !isNaN(parseFloat(userDist))) {
+                         const meters = parseFloat(userDist)
+                         if (meters > 0) {
+                             const newScale = distPixels / meters // pixels per 1 meter
+                             setPixelsPerMeter(newScale)
+                             alert(`Escala calibrada! 1 Metro = ${newScale.toFixed(2)} pixels.`)
+                         }
+                     }
+                     // Reset
+                     setCalibrationPoints([])
+                     setTool('select')
+                 }, 100)
+             }
+        }
     }
   }
 
@@ -348,6 +398,17 @@ const FloorPlan = () => {
                 angleText: snappedAngle !== null ? `${snappedAngle}°` : null
             }))
         }
+    } else if (tool === 'dimension' && isDrawing.current) {
+         const stage = e.target.getStage()
+         const relativePos = stage.getRelativePointerPosition()
+        
+         if (relativePos && newDimension) {
+             setNewDimension(prev => ({
+                 ...prev,
+                 x2: relativePos.x,
+                 y2: relativePos.y
+             }))
+         }
     }
   }
 
@@ -359,6 +420,13 @@ const FloorPlan = () => {
                 setWalls(prev => [...prev, { ...newWall, id: Date.now(), width: 6 }])
             }
             setNewWall(null)
+        } else if (tool === 'dimension' && newDimension) {
+             // Validate min length
+             const dist = Math.sqrt(Math.pow(newDimension.x2 - newDimension.x1, 2) + Math.pow(newDimension.y2 - newDimension.y1, 2))
+             if (dist > 5) { // Min 5 pixels
+                 setDimensionsList(prev => [...prev, { ...newDimension, id: Date.now() }])
+             }
+             setNewDimension(null)
         }
     }
   }
@@ -1129,7 +1197,23 @@ const FloorPlan = () => {
             icon={GalleryVerticalEnd} 
             tooltip="Adicionar Janela" 
         />
+        <ToolButton 
+            active={tool === 'dimension'} 
+            onClick={() => setTool('dimension')} 
+            icon={Ruler} 
+            tooltip="Fita Métrica (Cotas)" 
+        />
         <div className="h-px bg-slate-200 my-1"></div>
+        <ToolButton 
+            active={tool === 'calibrate'} 
+            onClick={() => {
+                setTool(tool === 'calibrate' ? 'select' : 'calibrate')
+                setCalibrationPoints([])
+            }} 
+            icon={Square} 
+            tooltip="Calibrar Escala (Régua)" 
+            className="text-amber-600 bg-amber-50 hover:bg-amber-100"
+        />
         <ToolButton 
             active={false} 
             onClick={() => {}} 
@@ -1202,9 +1286,9 @@ const FloorPlan = () => {
                     // Calcula centro e comprimento
                     const cx = (wall.x1 + wall.x2) / 2
                     const cy = (wall.y1 + wall.y2) / 2
-                    // Comprimento em metros (px / GRID_SIZE)
+                    // Comprimento em metros (px / pixelsPerMeter)
                     const lenPixels = Math.sqrt(Math.pow(wall.x2 - wall.x1, 2) + Math.pow(wall.y2 - wall.y1, 2))
-                    const lenMeters = (lenPixels / GRID_SIZE).toFixed(2)
+                    const lenMeters = (lenPixels / pixelsPerMeter).toFixed(2)
 
                     // Ângulo da parede para rotacionar o texto
                     const dx = wall.x2 - wall.x1
@@ -1482,8 +1566,101 @@ const FloorPlan = () => {
                             </Group>
                         )
                     }
+
                     return null
                 })()}
+
+                {/* Dimensions */}
+                {dimensionsList.map(d => {
+                    const cx = (d.x1 + d.x2) / 2
+                    const cy = (d.y1 + d.y2) / 2
+                    const lenPixels = Math.sqrt(Math.pow(d.x2 - d.x1, 2) + Math.pow(d.y2 - d.y1, 2))
+                    const lenMeters = (lenPixels / pixelsPerMeter).toFixed(2)
+                    const angle = Math.atan2(d.y2 - d.y1, d.x2 - d.x1) * 180 / Math.PI
+                    
+                    return (
+                        <Group key={d.id}>
+                            <Line 
+                                points={[d.x1, d.y1, d.x2, d.y2]} 
+                                stroke="#f59e0b" 
+                                strokeWidth={1} 
+                                dash={[4, 4]} 
+                            />
+                            {/* Tips */}
+                            <Circle x={d.x1} y={d.y1} radius={2} fill="#f59e0b" />
+                            <Circle x={d.x2} y={d.y2} radius={2} fill="#f59e0b" />
+                            
+                            {/* Label Background for Readability */}
+                            <Rect 
+                                x={cx - 20} 
+                                y={cy - 8} 
+                                width={40} 
+                                height={16} 
+                                fill="white" 
+                                opacity={0.8} 
+                                cornerRadius={4}
+                            />
+                            <Text 
+                                x={cx} 
+                                y={cy} 
+                                text={`${lenMeters}m`} 
+                                fontSize={10} 
+                                fontStyle="bold"
+                                fill="#b45309" // Amber 700
+                                align="center" 
+                                offsetX={20}
+                                offsetY={5}
+                            />
+                             {/* Delete Button for Dimension (Only if Selected logic exists, skipping for simplified MVP) */}
+                             {/* Clicking on dimension to select/delete could be added later */}
+                        </Group>
+                    )
+                })}
+
+                {/* New Dimension Preview */}
+                {newDimension && (() => {
+                    const cx = (newDimension.x1 + newDimension.x2) / 2
+                    const cy = (newDimension.y1 + newDimension.y2) / 2
+                    const lenPixels = Math.sqrt(Math.pow(newDimension.x2 - newDimension.x1, 2) + Math.pow(newDimension.y2 - newDimension.y1, 2))
+                    const lenMeters = (lenPixels / pixelsPerMeter).toFixed(2)
+                    
+                    return (
+                        <Group>
+                            <Line 
+                                points={[newDimension.x1, newDimension.y1, newDimension.x2, newDimension.y2]} 
+                                stroke="#f59e0b" 
+                                strokeWidth={1} 
+                                dash={[4, 4]} 
+                            />
+                            <Text 
+                                x={cx} 
+                                y={cy - 15} 
+                                text={`${lenMeters}m`} 
+                                fontSize={10} 
+                                fontStyle="bold"
+                                fill="#b45309" 
+                                align="center" 
+                                offsetX={15}
+                            />
+                        </Group>
+                    )
+                })()}
+
+                {/* Calibration Points Render */}
+                {calibrationPoints.map((p, i) => (
+                    <Group key={`cal-${i}`}>
+                        <Circle x={p.x} y={p.y} radius={6} stroke="#ef4444" strokeWidth={2} fill="white" />
+                        <Circle x={p.x} y={p.y} radius={2} fill="#ef4444" />
+                        {i > 0 && (
+                            <Line 
+                                points={[calibrationPoints[0].x, calibrationPoints[0].y, p.x, p.y]}
+                                stroke="#ef4444"
+                                strokeWidth={1}
+                                dash={[2, 2]}
+                            />
+                        )}
+                    </Group>
+                ))}
 
             </Layer>
          </Stage>
