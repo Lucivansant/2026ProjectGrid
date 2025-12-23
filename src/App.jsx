@@ -8,6 +8,7 @@ import Clients from './pages/Clients'
 import Budgets from './pages/Budgets'
 import Admin from './pages/Admin'
 import FloorPlan from './pages/FloorPlan'
+import NotFound from './pages/NotFound'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 
@@ -30,7 +31,11 @@ function App() {
             <Route path="/clients" element={<Clients />} />
             <Route path="/floor-plan" element={<FloorPlan />} />
           </Route>
-        </Route>
+          </Route>
+
+
+        {/* Catch-all 404 */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   )
