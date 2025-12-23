@@ -36,6 +36,28 @@ const SNAP_THRESHOLD = 10
  * Componente principal do Editor de Plantas
  */
 const FloorPlan = () => {
+  // --- Helper: Snap to Grid or Wall Endpoints ---
+  const snapToGrid = (val) => Math.round(val / GRID_SIZE) * GRID_SIZE
+  
+  const getSnappedPoint = (x, y, excludeWallId = null) => {
+      // 1. Try snapping to other wall endpoints (Vertex Snap)
+      // Check both start and end points of all *other* walls
+      for (let w of walls) {
+          if (excludeWallId && w.id.toString() === excludeWallId.toString()) continue
+
+          // Snap to Start Point of other wall
+          if (Math.abs(x - w.x1) < SNAP_THRESHOLD && Math.abs(y - w.y1) < SNAP_THRESHOLD) {
+              return { x: w.x1, y: w.y1, snapped: true }
+          }
+          // Snap to End Point of other wall
+          if (Math.abs(x - w.x2) < SNAP_THRESHOLD && Math.abs(y - w.y2) < SNAP_THRESHOLD) {
+              return { x: w.x2, y: w.y2, snapped: true }
+          }
+      }
+
+      // 2. Fallback to Grid Snap
+      return { x: snapToGrid(x), y: snapToGrid(y), snapped: false }
+  }
   // --- Estados da Ferramenta ---
   const [tool, setTool] = useState('select') // select, wall, wire, room, dimension
   const [showGrid, setShowGrid] = useState(true)
@@ -891,12 +913,28 @@ const FloorPlan = () => {
             // A 32 32 0 0 1 0 32 (Arco - 0,32 até 32,0? Não, centro em 0,0)
             // Path Arc: M startX startY A rx ry x-axis-rotation large-arc-flag sweep-flag endX endY
             // Start: 32,0. End: 0,32. 
+            // Fix: Add White Mask to simulate "opening" in the wall
             shape = (
                 <Group>
+                     {/* Máscara da Parede (Simula abertura) */}
+                     {/* Cobre a linha da parede abaixo da porta. Assumindo parede de 6px width */}
+                     <Rect x={-2} y={-4} width={36} height={8} fill="#f8fafc" /> 
+
+                     {/* Batente / Folha */}
+                     {/* Folha da porta (vertical se aberta 90 graus) */}
                      <Line points={[0, 0, 0, 32]} stroke="#334155" strokeWidth={4} /> 
-                     <Line points={[0, 0, 32, 0]} stroke="#334155" strokeWidth={4} /> 
-                     {/* Arco do movimento: de 32,0 para 0,32 */}
+                     
+                     {/* Linha do vão (opcional, mas ajuda a visualizar o espaço) */}
+                     <Line points={[0, 0, 32, 0]} stroke="#334155" strokeWidth={1} dash={[2, 2]} opacity={0.5} /> 
+
+                     {/* Arco do movimento: de 32,0 (fechada) para 0,32 (aberta) */}
+                     {/* Se 0,0 é a dobradiça */}
                      <Path data="M 32 0 A 32 32 0 0 1 0 32" stroke="#cbd5e1" strokeWidth={1} dash={[2,2]} />
+                     
+                     {/* Batente Direito (onde a porta fecha) */}
+                     <Rect x={30} y={-3} width={4} height={6} fill="#334155" />
+                     {/* Batente Esquerdo (dobradiça) */}
+                     <Rect x={-2} y={-3} width={4} height={6} fill="#334155" />
                 </Group>
             )
             break
@@ -1524,19 +1562,17 @@ const FloorPlan = () => {
                                     draggable
                                     onDragMove={(e) => {
                                         const { x, y } = e.target.position()
-                                        // Snap
-                                        const sx = snapToGrid(x)
-                                        const sy = snapToGrid(y)
+                                        // Snap logic
+                                        const snapped = getSnappedPoint(x, y, selectedWall.id)
+                                        const sx = snapped.x
+                                        const sy = snapped.y
                                         
-                                        // Update visual update limits? 
-                                        // Actually better to update state directly for "live" feel
                                         setWalls(prev => prev.map(w => {
                                             if (w.id.toString() === selectedId) {
                                                 return { ...w, x1: sx, y1: sy }
                                             }
                                             return w
                                         }))
-                                        // Force snap position on handle
                                         e.target.position({ x: sx, y: sy })
                                     }}
                                 />
@@ -1551,9 +1587,12 @@ const FloorPlan = () => {
                                     draggable
                                     onDragMove={(e) => {
                                         const { x, y } = e.target.position()
-                                        const sx = snapToGrid(x)
-                                        const sy = snapToGrid(y)
+                                        // Snap to Wall or Grid
+                                        const snapped = getSnappedPoint(x, y, selectedWall.id)
+                                        const sx = snapped.x
+                                        const sy = snapped.y
                                         
+                                        // Update visual state (React State > Konva Node Position)
                                         setWalls(prev => prev.map(w => {
                                             if (w.id.toString() === selectedId) {
                                                 return { ...w, x2: sx, y2: sy }
