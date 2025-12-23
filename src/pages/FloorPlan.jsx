@@ -339,19 +339,6 @@ const FloorPlan = () => {
                 x1: x, y1: y, x2: x, y2: y
             })
         }
-    } else if (tool === 'dimension') {
-        const stage = e.target.getStage()
-        const relativePos = stage.getRelativePointerPosition()
-        
-        if (relativePos) {
-            const x = relativePos.x
-            const y = relativePos.y
-            
-            isDrawing.current = true
-            setNewDimension({
-                x1: x, y1: y, x2: x, y2: y
-            })
-        }
     } else if (tool === 'calibrate') {
         // Calibration Logic: Click 2 points
         const stage = e.target.getStage()
@@ -463,17 +450,6 @@ const FloorPlan = () => {
                 angleText: snappedAngle !== null ? `${snappedAngle}°` : null
             }))
         }
-    } else if (tool === 'dimension' && isDrawing.current) {
-         const stage = e.target.getStage()
-         const relativePos = stage.getRelativePointerPosition()
-        
-         if (relativePos && newDimension) {
-             setNewDimension(prev => ({
-                 ...prev,
-                 x2: relativePos.x,
-                 y2: relativePos.y
-             }))
-         }
     }
   }
 
@@ -485,13 +461,6 @@ const FloorPlan = () => {
                 setWalls(prev => [...prev, { ...newWall, id: Date.now(), width: 6 }])
             }
             setNewWall(null)
-        } else if (tool === 'dimension' && newDimension) {
-             // Validate min length
-             const dist = Math.sqrt(Math.pow(newDimension.x2 - newDimension.x1, 2) + Math.pow(newDimension.y2 - newDimension.y1, 2))
-             if (dist > 5) { // Min 5 pixels
-                 setDimensionsList(prev => [...prev, { ...newDimension, id: `dim-${Date.now()}` }])
-             }
-             setNewDimension(null)
         }
     }
   }
@@ -1291,11 +1260,7 @@ const FloorPlan = () => {
             tooltip="Adicionar Janela" 
         />
         <ToolButton 
-            active={tool === 'dimension'} 
-            onClick={() => setTool('dimension')} 
-            icon={Ruler} 
-            tooltip="Fita Métrica (Cotas)" 
-        />
+
         <div className="h-px bg-slate-200 my-1"></div>
         <ToolButton 
             active={tool === 'calibrate'} 
@@ -1745,6 +1710,12 @@ const FloorPlan = () => {
                         onClick={() => tool === 'select' && setSelectedId(label.id)}
                         onTap={() => tool === 'select' && setSelectedId(label.id)}
                         onDblClick={() => {
+                             const newText = window.prompt("Editar texto:", label.text)
+                             if (newText !== null) {
+                                  setLabels(prev => prev.map(l => l.id === label.id ? { ...l, text: newText } : l))
+                             }
+                        }}
+                        onDblTap={() => {
                              const newText = window.prompt("Editar texto:", label.text)
                              if (newText !== null) {
                                   setLabels(prev => prev.map(l => l.id === label.id ? { ...l, text: newText } : l))
