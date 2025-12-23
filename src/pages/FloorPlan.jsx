@@ -59,7 +59,7 @@ const FloorPlan = () => {
       return { x: snapToGrid(x), y: snapToGrid(y), snapped: false }
   }
   // --- Estados da Ferramenta ---
-  const [tool, setTool] = useState('select') // select, wall, wire, room, dimension
+  const [tool, setTool] = useState('select') // select, wall, wire, room, dimension, text
   const [showGrid, setShowGrid] = useState(true)
   const [stageScale, setStageScale] = useState(1)
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 })
@@ -74,6 +74,7 @@ const FloorPlan = () => {
   const [components, setComponents] = useState([]) // Elementos elétricos {id, type, x, y, rotation, properties: {power, circuit, elevation}}
   const [wires, setWires] = useState([]) // Array de cabos {id, startCompId, endCompId}
   const [dimensionsList, setDimensionsList] = useState([]) // Lista de Cotas {id, x1, y1, x2, y2}
+  const [labels, setLabels] = useState([]) // Lista de Textos {id, x, y, text, fontSize}
   const [selectedId, setSelectedId] = useState(null) // ID do objeto selecionado
   
   // Estado para formulário de propriedades
@@ -158,6 +159,8 @@ const FloorPlan = () => {
             if (data.walls) setWalls(data.walls)
             if (data.components) setComponents(data.components)
             if (data.wires) setWires(data.wires)
+            if (data.dimensionsList) setDimensionsList(data.dimensionsList)
+            if (data.labels) setLabels(data.labels)
         } catch (e) {
             console.error('Erro ao carregar projeto:', e)
         }
@@ -193,12 +196,19 @@ const FloorPlan = () => {
                // Wires são complexos de copiar isolados (dependem de comps), 
                // por simplicidade vamos ignorar ou copiar só propriedades?
                // Vamos ignorar wires por enquanto no copy/paste MVP
+            } else if (selectedId.toString().startsWith('dim-')) {
+                 const dim = dimensionsList.find(d => d.id === selectedId)
+                 if (dim) setClipboard({ type: 'dimension', data: dim })
+            } else if (selectedId.toString().startsWith('text-')) {
+                 const txt = labels.find(t => t.id === selectedId)
+                 if (txt) setClipboard({ type: 'text', data: txt })
             } else {
-                // Wall
-                const wall = walls.find(w => w.id.toString() === selectedId)
-                if (wall) setClipboard({ type: 'wall', data: wall })
+                 // Wall
+                 const wall = walls.find(w => w.id.toString() === selectedId)
+                 if (wall) setClipboard({ type: 'wall', data: wall })
             }
         }
+
 
         // Paste (Ctrl+V)
         if (e.ctrlKey && e.key === 'v') {
@@ -226,6 +236,15 @@ const FloorPlan = () => {
                 }
                 setWalls(prev => [...prev, newWall])
                 setSelectedId(newWall.id.toString())
+            } else if (clipboard.type === 'text') {
+                 const newText = {
+                     ...clipboard.data,
+                     id: `text-${Date.now()}`,
+                     x: clipboard.data.x + offset,
+                     y: clipboard.data.y + offset
+                 }
+                 setLabels(prev => [...prev, newText])
+                 setSelectedId(newText.id)
             }
         }
     }
@@ -236,7 +255,7 @@ const FloorPlan = () => {
 
 
   const saveProject = () => {
-    const data = { walls, components, wires }
+    const data = { walls, components, wires, dimensionsList, labels }
     localStorage.setItem('projectgrid_floorplan', JSON.stringify(data))
     // Opcional: Feedback visual de salvamento?
   }
@@ -365,6 +384,30 @@ const FloorPlan = () => {
                  }, 100)
              }
         }
+    } else if (tool === 'text') {
+        const stage = e.target.getStage()
+        const relativePos = stage.getRelativePointerPosition()
+        
+        if (relativePos) {
+             const newLabel = {
+                 id: `text-${Date.now()}`,
+                 x: relativePos.x,
+                 y: relativePos.y,
+                 text: 'Novo Texto',
+                 fontSize: 16
+             }
+             setLabels(prev => [...prev, newLabel])
+             setTool('select')
+             setSelectedId(newLabel.id)
+             
+             // Auto edit on create?
+             setTimeout(() => {
+                 const userText = window.prompt("Digite o texto:", "Novo Texto")
+                 if (userText !== null) {
+                      setLabels(prev => prev.map(l => l.id === newLabel.id ? { ...l, text: userText } : l))
+                 }
+             }, 100)
+        }
     }
   }
 
@@ -446,7 +489,7 @@ const FloorPlan = () => {
              // Validate min length
              const dist = Math.sqrt(Math.pow(newDimension.x2 - newDimension.x1, 2) + Math.pow(newDimension.y2 - newDimension.y1, 2))
              if (dist > 5) { // Min 5 pixels
-                 setDimensionsList(prev => [...prev, { ...newDimension, id: Date.now() }])
+                 setDimensionsList(prev => [...prev, { ...newDimension, id: `dim-${Date.now()}` }])
              }
              setNewDimension(null)
         }
@@ -599,6 +642,10 @@ const FloorPlan = () => {
         setWires(prev => prev.filter(w => w.startCompId !== selectedId && w.endCompId !== selectedId))
     } else if (selectedId.toString().startsWith('wire-')) {
         setWires(prev => prev.filter(w => w.id !== selectedId))
+    } else if (selectedId.toString().startsWith('dim-')) {
+        setDimensionsList(prev => prev.filter(d => d.id !== selectedId))
+    } else if (selectedId.toString().startsWith('text-')) {
+        setLabels(prev => prev.filter(l => l.id !== selectedId))
     } else {
         // Assume que é parede (ids numéricos)
         // Nota: IDs de parede são timestamps (números), ids de comp são strings
@@ -614,6 +661,8 @@ const FloorPlan = () => {
         setWalls([])
         setComponents([])
         setWires([])
+        setDimensionsList([])
+        setLabels([])
         setSelectedId(null)
         setNewWall(null)
         setWiringStartId(null)
@@ -1180,6 +1229,12 @@ const FloorPlan = () => {
             tooltip="Selecionar (V)" 
         />
         <ToolButton 
+            active={tool === 'text'} 
+            onClick={() => setTool('text')} 
+            icon={Type} 
+            tooltip="Texto (T)" 
+        />
+        <ToolButton 
             active={tool === 'wall'} 
             onClick={() => setTool('wall')} 
             icon={PenTool} 
@@ -1655,6 +1710,31 @@ const FloorPlan = () => {
                         </Group>
                     )
                 })}
+
+                {/* Text Labels */}
+                {labels.map((label) => (
+                    <Text
+                        key={label.id}
+                        id={label.id}
+                        x={label.x}
+                        y={label.y}
+                        text={label.text}
+                        fontSize={label.fontSize || 16}
+                        fill={selectedId === label.id ? "#ef4444" : "#0f172a"}
+                        draggable={tool === 'select'}
+                        onClick={() => tool === 'select' && setSelectedId(label.id)}
+                        onTap={() => tool === 'select' && setSelectedId(label.id)}
+                        onDblClick={() => {
+                             const newText = window.prompt("Editar texto:", label.text)
+                             if (newText !== null) {
+                                  setLabels(prev => prev.map(l => l.id === label.id ? { ...l, text: newText } : l))
+                             }
+                        }}
+                        onDragEnd={(e) => {
+                            setLabels(prev => prev.map(l => l.id === label.id ? { ...l, x: e.target.x(), y: e.target.y() } : l))
+                        }}
+                    />
+                ))}
 
                 {/* New Dimension Preview */}
                 {newDimension && (() => {
