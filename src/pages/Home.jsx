@@ -105,78 +105,13 @@ const Home = () => {
 
             {/* Pré-visualização Estruturada da Interface (UI) */}
             <div className="relative scroll-reveal transition-all duration-700 delay-200 lg:block hidden">
-               <div className="bg-slate-50 rounded-xl border border-slate-200 p-1.5 shadow-2xl overflow-hidden">
-                  <div className="rounded-lg overflow-hidden bg-white border border-slate-200 aspect-16/10 flex">
-                    
-                    {/* Barra Lateral do Mockup */}
-                    <div className="w-16 border-r border-slate-100 bg-slate-50 flex flex-col items-center py-4 gap-4">
-                       <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center mb-2">
-                          <Zap className="w-3.5 h-3.5 text-white" />
-                       </div>
-                       <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center text-indigo-600">
-                          <LayoutDashboard className="w-4 h-4" />
-                       </div>
-                       <div className="w-8 h-8 rounded flex items-center justify-center text-slate-300">
-                          <Calculator className="w-4 h-4" />
-                       </div>
-                       <div className="w-8 h-8 rounded flex items-center justify-center text-slate-300">
-                          <FileText className="w-4 h-4" />
-                       </div>
-                       <div className="w-8 h-8 rounded flex items-center justify-center text-slate-300">
-                          <Users className="w-4 h-4" />
-                       </div>
-                    </div>
-
-                    {/* Área Principal do Mockup */}
-                    <div className="flex-1 flex flex-col overflow-hidden bg-white">
-                       {/* Barra Superior do Mockup */}
-                       <div className="h-8 border-b border-slate-100 flex items-center px-4 justify-between bg-white">
-                          <div className="flex items-center gap-2">
-                             <div className="w-24 h-3 bg-slate-50 border border-slate-100 rounded flex items-center px-1.5">
-                                <Search className="w-2 h-2 text-slate-300" />
-                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                             <div className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200"></div>
-                             <div className="w-10 h-2.5 bg-slate-100 rounded-full"></div>
-                          </div>
-                       </div>
-
-                       {/* Conteúdo do Mockup - Representação do Dashboard */}
-                       <div className="p-4 space-y-4 overflow-hidden">
-                          <div className="flex items-end justify-between">
-                             <div className="space-y-1">
-                                <div className="w-20 h-2 bg-slate-100 rounded-full"></div>
-                                <div className="w-32 h-4 bg-slate-200 rounded"></div>
-                             </div>
-                             <div className="w-16 h-5 bg-indigo-600 rounded"></div>
-                          </div>
-
-                          {/* Mockup da Grade de Métricas */}
-                          <div className="grid grid-cols-4 gap-0 border border-slate-100 rounded-lg overflow-hidden">
-                             {[1,2,3,4].map(i => (
-                                <div key={i} className={`p-2 bg-white ${i < 4 ? 'border-r border-slate-100' : ''}`}>
-                                   <div className="w-full h-1 bg-slate-50 rounded-full mb-2"></div>
-                                   <div className="w-2/3 h-3 bg-slate-100 rounded"></div>
-                                </div>
-                             ))}
-                          </div>
-
-                          {/* Mockup da Tabela */}
-                          <div className="border border-slate-100 rounded overflow-hidden">
-                             <div className="h-6 bg-slate-50 border-b border-slate-100"></div>
-                             <div className="space-y-0.5 divide-y divide-slate-50">
-                                {[1,2,3].map(i => (
-                                   <div key={i} className="h-6 bg-white flex items-center px-3 justify-between">
-                                      <div className="w-1/4 h-1.5 bg-slate-100 rounded-full"></div>
-                                      <div className="w-1/6 h-1.5 bg-slate-50 rounded-full"></div>
-                                   </div>
-                                ))}
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
+               <div className="bg-slate-50 rounded-xl border border-slate-200 p-1.5 shadow-2xl overflow-hidden relative group">
+                  <div className="absolute inset-0 bg-linear-to-tr from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"></div>
+                  <img 
+                    src="/dashboard-preview.png" 
+                    alt="ProjectGrid Dashboard" 
+                    className="rounded-lg shadow-sm w-full h-auto border border-slate-100"
+                  />
                </div>
                
                {/* Sobreposição Decorativa de Terminal */}
