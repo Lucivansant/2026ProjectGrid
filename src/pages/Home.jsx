@@ -108,7 +108,7 @@ const Home = () => {
                <div className="bg-slate-50 rounded-xl border border-slate-200 p-1.5 shadow-2xl overflow-hidden relative group">
                   <div className="absolute inset-0 bg-linear-to-tr from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"></div>
                   <img 
-                    src="/dashboard-preview.png" 
+                    src={`${import.meta.env.BASE_URL}dashboard-preview.png`} 
                     alt="ProjectGrid Dashboard" 
                     className="rounded-lg shadow-sm w-full h-auto border border-slate-100"
                   />
