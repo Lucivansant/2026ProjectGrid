@@ -642,7 +642,7 @@ const FloorPlan = () => {
         setWires(prev => prev.filter(w => w.startCompId !== selectedId && w.endCompId !== selectedId))
     } else if (selectedId.toString().startsWith('wire-')) {
         setWires(prev => prev.filter(w => w.id !== selectedId))
-    } else if (selectedId.toString().startsWith('dim-')) {
+    } else if (selectedId.toString().startsWith('dim-') || dimensionsList.some(d => d.id === selectedId)) {
         setDimensionsList(prev => prev.filter(d => d.id !== selectedId))
     } else if (selectedId.toString().startsWith('text-')) {
         setLabels(prev => prev.filter(l => l.id !== selectedId))
@@ -1674,15 +1674,33 @@ const FloorPlan = () => {
                     
                     return (
                         <Group key={d.id}>
+                            {/* Hit Area (Invisible wider line for easier clicking) */}
                             <Line 
                                 points={[d.x1, d.y1, d.x2, d.y2]} 
-                                stroke="#f59e0b" 
-                                strokeWidth={1} 
+                                stroke="transparent" 
+                                strokeWidth={10} 
+                                onClick={() => tool === 'select' && setSelectedId(d.id)}
+                                onTap={() => tool === 'select' && setSelectedId(d.id)}
+                                onMouseEnter={(e) => {
+                                    const container = e.target.getStage().container();
+                                    container.style.cursor = tool === 'select' ? 'pointer' : 'default';
+                                }}
+                                onMouseLeave={(e) => {
+                                    const container = e.target.getStage().container();
+                                    container.style.cursor = 'default';
+                                }}
+                            />
+                            {/* Visible Line */}
+                            <Line 
+                                points={[d.x1, d.y1, d.x2, d.y2]} 
+                                stroke={selectedId === d.id ? "#ef4444" : "#f59e0b"} 
+                                strokeWidth={selectedId === d.id ? 2 : 1} 
                                 dash={[4, 4]} 
+                                listening={false} // Pass events to hit area
                             />
                             {/* Tips */}
-                            <Circle x={d.x1} y={d.y1} radius={2} fill="#f59e0b" />
-                            <Circle x={d.x2} y={d.y2} radius={2} fill="#f59e0b" />
+                            <Circle x={d.x1} y={d.y1} radius={3} fill={selectedId === d.id ? "#ef4444" : "#f59e0b"} listening={false} />
+                            <Circle x={d.x2} y={d.y2} radius={3} fill={selectedId === d.id ? "#ef4444" : "#f59e0b"} listening={false} />
                             
                             {/* Label Background for Readability */}
                             <Rect 
@@ -1693,6 +1711,8 @@ const FloorPlan = () => {
                                 fill="white" 
                                 opacity={0.8} 
                                 cornerRadius={4}
+                                onClick={() => tool === 'select' && setSelectedId(d.id)}
+                                onTap={() => tool === 'select' && setSelectedId(d.id)}
                             />
                             <Text 
                                 x={cx} 
@@ -1700,13 +1720,13 @@ const FloorPlan = () => {
                                 text={`${lenMeters}m`} 
                                 fontSize={10} 
                                 fontStyle="bold"
-                                fill="#b45309" // Amber 700
+                                fill={selectedId === d.id ? "#ef4444" : "#b45309"}
                                 align="center" 
                                 offsetX={20}
                                 offsetY={5}
+                                onClick={() => tool === 'select' && setSelectedId(d.id)}
+                                onTap={() => tool === 'select' && setSelectedId(d.id)}
                             />
-                             {/* Delete Button for Dimension (Only if Selected logic exists, skipping for simplified MVP) */}
-                             {/* Clicking on dimension to select/delete could be added later */}
                         </Group>
                     )
                 })}
