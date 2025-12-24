@@ -1,11 +1,11 @@
-import { X, Zap, Check, Lock, Star } from 'lucide-react'
+import { X, Check, Lock, Star, TrendingUp } from 'lucide-react'
 
 const UpgradeModal = ({ isOpen, onClose, limitName, currentCount }) => {
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
       
       <div className="relative bg-white w-full max-w-md rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
         
@@ -14,43 +14,45 @@ const UpgradeModal = ({ isOpen, onClose, limitName, currentCount }) => {
         </button>
 
         <div className="p-8 pb-0">
-           <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mb-6">
-             <Lock className="w-6 h-6 text-indigo-600" />
+           <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-amber-100">
+             <Lock className="w-6 h-6 text-amber-500" />
            </div>
            
-           <h2 className="text-xl font-bold text-slate-900 mb-2">Limite Gratuito Atingido</h2>
+           <h2 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Sua expansão foi pausada</h2>
            <p className="text-sm text-slate-500 leading-relaxed">
-             Você atingiu o limite de <strong className="text-slate-900">{currentCount} {limitName}</strong> do seu plano atual. Para continuar crescendo, migre para o profissional.
+             Você atingiu o limite de <strong className="text-slate-900">{currentCount} {limitName}</strong>. Isso é um ótimo sinal: significa que você está crescendo. Não deixe a ferramenta limitar seu faturamento.
            </p>
         </div>
 
         <div className="p-8 space-y-4">
-           <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
-              <div className="bg-white p-1.5 rounded shadow-sm border border-slate-200 shrink-0">
-                 <Check className="w-3.5 h-3.5 text-indigo-600" />
+           <div className="flex items-start gap-4">
+              <div className="bg-green-50 p-1.5 rounded-full mt-0.5 shrink-0">
+                 <TrendingUp className="w-3.5 h-3.5 text-green-600" />
               </div>
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Criação Ilimitada</span>
+              <div>
+                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-0.5">Sem teto de ganhos</h4>
+                 <p className="text-xs text-slate-500">Nunca mais recuse um cliente ou deixe de enviar um orçamento por falta de espaço no sistema.</p>
+              </div>
            </div>
            
-           <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
-              <div className="bg-white p-1.5 rounded shadow-sm border border-slate-200 shrink-0">
-                 <Check className="w-3.5 h-3.5 text-indigo-600" />
+           <div className="flex items-start gap-4">
+              <div className="bg-indigo-50 p-1.5 rounded-full mt-0.5 shrink-0">
+                 <Star className="w-3.5 h-3.5 text-indigo-600" />
               </div>
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">PDFs Profissionais (White Label)</span>
-           </div>
-
-           <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
-              <div className="bg-white p-1.5 rounded shadow-sm border border-slate-200 shrink-0">
-                 <Check className="w-3.5 h-3.5 text-indigo-600" />
+              <div>
+                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-0.5">Autoridade Imediata</h4>
+                 <p className="text-xs text-slate-500">Envie propostas limpas, sem marcas d'água, que transmitem confiança para o cliente assinar.</p>
               </div>
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Acesso Prioritário</span>
            </div>
         </div>
 
-        <div className="p-8 pt-0">
-           <div className="text-center mb-6">
-              <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">Apenas</span>
-              <div className="text-3xl font-black text-slate-900 tracking-tighter mt-1">
+        <div className="p-8 pt-0 bg-slate-50 border-t border-slate-100">
+           <div className="text-center mb-6 pt-6">
+              <div className="inline-block bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded-full mb-2 uppercase tracking-wide">
+                 Retorno Garantido
+              </div>
+              <p className="text-xs text-slate-500 mb-1">Um único serviço aprovado já paga sua assinatura anual.</p>
+              <div className="text-3xl font-black text-slate-900 tracking-tighter">
                 R$ 39,90
                 <span className="text-sm font-bold text-slate-400 ml-1">/mês</span>
               </div>
@@ -58,13 +60,13 @@ const UpgradeModal = ({ isOpen, onClose, limitName, currentCount }) => {
 
            <button 
              onClick={() => window.open('https://projectgrid.com.br/pro', '_blank')} 
-             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-lg font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
+             className="w-full bg-slate-900 hover:bg-black text-white py-4 rounded-lg font-bold text-xs uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
            >
-             <Star className="w-4 h-4 text-indigo-200 group-hover:text-white transition-colors" />
-             Desbloquear ProjectGrid Pro
+             <Lock className="w-4 h-4 text-emerald-400 group-hover:text-emerald-300 transition-colors" />
+             Destravar Meu Crescimento
            </button>
            <p className="text-[10px] text-center text-slate-400 font-medium mt-4">
-             Cancele a qualquer momento.
+             Risco Zero: Cancele com 1 clique se não lucrar mais.
            </p>
         </div>
       </div>
