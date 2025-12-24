@@ -233,14 +233,13 @@ const Clients = () => {
                     </td>
                     <td className="px-8 py-5 text-right">
                        <div className="flex items-center justify-end gap-2">
-                          <button className="p-2 text-slate-300 hover:text-slate-600 transition-colors"><Activity className="w-4 h-4" /></button>
                           <button 
                             onClick={() => handleDeleteClient(client.id)}
-                            className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                            disabled={clients.length >= CLIENT_LIMIT}
+                            className={`p-2 transition-colors ${clients.length >= CLIENT_LIMIT ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
-                          <ChevronRight className="w-4 h-4 text-slate-200 group-hover:text-indigo-400 transition-colors" />
                        </div>
                     </td>
                   </tr>

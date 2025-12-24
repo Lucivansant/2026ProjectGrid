@@ -18,9 +18,9 @@ const UpgradeModal = ({ isOpen, onClose, limitName, currentCount }) => {
              <Lock className="w-6 h-6 text-amber-500" />
            </div>
            
-           <h2 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Sua expansão foi pausada</h2>
+           <h2 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Período de Teste Finalizado</h2>
            <p className="text-sm text-slate-500 leading-relaxed">
-             Você atingiu o limite de <strong className="text-slate-900">{currentCount} {limitName}</strong>. Isso é um ótimo sinal: significa que você está crescendo. Não deixe a ferramenta limitar seu faturamento.
+             Você utilizou o limite de <strong className="text-slate-900">{currentCount} {limitName}</strong> para conhecer a plataforma. Se a ferramenta foi útil até aqui, imagine o impacto dela sem restrições no seu dia a dia. Chegou a hora de ter uma suíte profissional completa.
            </p>
         </div>
 

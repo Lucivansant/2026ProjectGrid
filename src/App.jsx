@@ -9,6 +9,9 @@ import Budgets from './pages/Budgets'
 import Admin from './pages/Admin'
 import FloorPlan from './pages/FloorPlan'
 import NotFound from './pages/NotFound'
+import Settings from './pages/Settings'
+import Plans from './pages/Plans'
+import Financial from './pages/Financial'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 
@@ -30,6 +33,9 @@ function App() {
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/floor-plan" element={<FloorPlan />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/plans" element={<Plans />} />
+            <Route path="/financial" element={<Financial />} />
           </Route>
           </Route>
 

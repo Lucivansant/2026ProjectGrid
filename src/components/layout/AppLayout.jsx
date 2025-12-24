@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   Search,
   Settings,
-  Ruler
+  Ruler,
+  DollarSign
 } from 'lucide-react'
 
 /**
@@ -55,6 +56,7 @@ const AppLayout = () => {
     { label: 'Levantamento', icon: Gauge, path: '/load-survey' },
     { label: 'Projetos 2D', icon: Ruler, path: '/floor-plan' },
     { label: 'Orçamentos', icon: FileText, path: '/budgets' },
+    { label: 'Financeiro', icon: DollarSign, path: '/financial' },
     { label: 'Clientes', icon: Users, path: '/clients' },
   ]
 
@@ -139,9 +141,9 @@ const AppLayout = () => {
            <div className="flex items-center gap-4">
               <div className="flex items-center gap-1 border-r border-slate-200 pr-4">
                  {/* Ícone de sino de notificação removido conforme solicitação */}
-                 <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded">
+                 <Link to="/settings" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded block">
                     <Settings className="w-4 h-4" />
-                 </button>
+                 </Link>
               </div>
 
               <div className="flex items-center gap-3 pl-2">

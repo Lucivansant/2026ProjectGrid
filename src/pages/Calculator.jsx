@@ -466,7 +466,8 @@ const Calculator = () => {
                  <div key={it.id} className="p-4 bg-white border border-slate-200 rounded hover:border-indigo-400 hover:shadow-xs transition-all group relative">
                     <button 
                       onClick={() => handleDelete(it.id)} 
-                      className="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                      disabled={history.length >= CALCULATION_LIMIT}
+                      className={`absolute top-3 right-3 transition-all ${history.length >= CALCULATION_LIMIT ? 'text-slate-200 cursor-not-allowed opacity-100' : 'text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100'}`}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>

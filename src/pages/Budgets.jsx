@@ -204,6 +204,25 @@ const Budgets = () => {
    */
   const updateStatus = async (id, status) => {
     await supabase.from('quotes').update({ status }).eq('id', id)
+    
+    // Auto-integração Financeira
+    if (status === 'Aprovado') {
+       // Buscar dados do orçamento
+       const { data: budget } = await supabase.from('quotes').select('title, total_value').eq('id', id).single()
+       
+       if (budget) {
+          await supabase.from('transactions').insert({
+             user_id: user.id,
+             type: 'income',
+             category: 'Projeto',
+             description: `Receita Prevista: ${budget.title}`,
+             amount: budget.total_value,
+             status: 'pending' // Novo status
+          })
+          alert('Orçamento Aprovado! Uma previsão de receita foi lançada no Financeiro.')
+       }
+    }
+
     loadBudgets(user.id)
   }
 
@@ -403,7 +422,7 @@ const Budgets = () => {
                                     {Object.keys(statusStyles).map(s => <option key={s} value={s}>{s}</option>)}
                                   </select>
                                   <button onClick={() => generatePDF(b)} className="p-1.5 text-slate-300 hover:text-indigo-600 transition-colors" title="Exportar Log"><Printer className="w-4 h-4" /></button>
-                                  <button onClick={() => deleteBudget(b.id)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors" title="Excluir"><Trash2 className="w-4 h-4" /></button>
+                                  <button onClick={() => deleteBudget(b.id)} disabled={budgets.length >= BUDGET_LIMIT} className={`p-1.5 transition-colors ${budgets.length >= BUDGET_LIMIT ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`} title="Excluir"><Trash2 className="w-4 h-4" /></button>
                                </div>
                             </td>
                           </tr>
@@ -447,13 +466,13 @@ const Budgets = () => {
 
             <div className="mt-8 pt-6 border-t border-white/10">
               <div className="flex justify-between items-end mb-8">
-                <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.1em]">Valor Consolidado</span>
+                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Valor Consolidado</span>
                 <span className="text-3xl font-bold tracking-tighter">R$ {totalBuilderValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
               <button 
                 onClick={handleUseBuilder}
                 disabled={builderItems.length === 0}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded font-black uppercase tracking-[0.1em] text-[10px] shadow-lg transition-all active:scale-[0.98] disabled:opacity-20"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded font-black uppercase tracking-widest text-[10px] shadow-lg transition-all active:scale-[0.98] disabled:opacity-20"
               >
                 Gerar Orçamento Técnico
               </button>

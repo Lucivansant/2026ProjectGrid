@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { 
   Users, 
@@ -17,6 +18,8 @@ import {
  * projetos recentes e um sistema de feedback.
  */
 const Dashboard = () => {
+  const navigate = useNavigate()
+
   // Estado de Métricas Operacionais
   const [metrics, setMetrics] = useState({
     totalClients: 0,
@@ -343,7 +346,10 @@ const Dashboard = () => {
               </form>
            </div>
 
-           <div className="p-6 border border-indigo-100 bg-indigo-50/30 rounded flex items-center justify-between group cursor-pointer hover:border-indigo-200 transition-colors">
+           <div 
+             onClick={() => navigate('/plans')}
+             className="p-6 border border-indigo-100 bg-indigo-50/30 rounded flex items-center justify-between group cursor-pointer hover:border-indigo-200 transition-colors"
+           >
               <div>
                  <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mb-0.5">
                    {userPlan === 'pro' ? 'Assinatura PRO' : 'Plano Gratuito'}

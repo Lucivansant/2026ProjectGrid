@@ -384,7 +384,7 @@ const LoadSurvey = () => {
                           <td className="px-6 py-4 text-xs font-bold text-indigo-600 font-mono">{s.total_va} VA</td>
                           <td className="px-6 py-4 text-right space-x-4">
                             <button onClick={() => handleLoadSurvey(s.id)} className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline">Carregar</button>
-                            <button onClick={() => handleDeleteSurvey(s.id)} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">Remover</button>
+                            <button onClick={() => handleDeleteSurvey(s.id)} disabled={surveys.length >= LOAD_SURVEY_LIMIT} className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${surveys.length >= LOAD_SURVEY_LIMIT ? 'text-slate-300 cursor-not-allowed' : 'text-red-400 hover:text-red-600'}`}>Remover</button>
                           </td>
                         </tr>
                       ))
