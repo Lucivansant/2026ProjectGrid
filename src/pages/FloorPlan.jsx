@@ -262,15 +262,43 @@ const FloorPlan = () => {
 
   const handleExport = () => {
     if (stageRef.current) {
+        // 1. Get original image data
         const uri = stageRef.current.toDataURL({
-             pixelRatio: 2 // Alta qualidade
+             pixelRatio: 2 // High quality
         })
-        const link = document.createElement('a')
-        link.download = 'planta-baixa-eletrica.png'
-        link.href = uri
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+
+        // 2. Create a temporary image to draw on
+        const img = new Image()
+        img.src = uri
+        img.onload = () => {
+            // 3. Create a canvas to combine image + watermark
+            const canvas = document.createElement('canvas')
+            canvas.width = img.width
+            canvas.height = img.height
+            const ctx = canvas.getContext('2d')
+            
+            // Draw original image
+            ctx.drawImage(img, 0, 0)
+
+            // 4. Draw Watermark Strategy (Viral Loop)
+            const text = "Projeto gerado com ProjectGrid.com.br - Versão Gratuita"
+            const fontSize = Math.max(12, 16 * (img.width / 1000)) // Responsive font size
+            
+            ctx.font = `bold ${fontSize}px sans-serif`
+            ctx.fillStyle = "rgba(0, 0, 0, 0.4)" // Shadow
+            ctx.fillText(text, 22, img.height - 18)
+            
+            ctx.fillStyle = "rgba(255, 255, 255, 0.8)" // White Text
+            ctx.fillText(text, 20, img.height - 20)
+
+            // 5. Download the new image
+            const link = document.createElement('a')
+            link.download = 'planta-baixa-projectgrid.png'
+            link.href = canvas.toDataURL()
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+        }
     }
   }
 
