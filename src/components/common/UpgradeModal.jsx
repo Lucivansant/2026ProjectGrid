@@ -48,15 +48,23 @@ const UpgradeModal = ({ isOpen, onClose, limitName, currentCount }) => {
         </div>
 
         <div className="p-8 pt-0">
+           <div className="text-center mb-6">
+              <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">Apenas</span>
+              <div className="text-3xl font-black text-slate-900 tracking-tighter mt-1">
+                R$ 39,90
+                <span className="text-sm font-bold text-slate-400 ml-1">/mês</span>
+              </div>
+           </div>
+
            <button 
              onClick={() => window.open('https://projectgrid.com.br/pro', '_blank')} 
-             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-lg font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
+             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-lg font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
            >
              <Star className="w-4 h-4 text-indigo-200 group-hover:text-white transition-colors" />
              Desbloquear ProjectGrid Pro
            </button>
            <p className="text-[10px] text-center text-slate-400 font-medium mt-4">
-             Apenas R$ 39,90/mês. Cancele a qualquer momento.
+             Cancele a qualquer momento.
            </p>
         </div>
       </div>
