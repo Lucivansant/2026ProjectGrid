@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import UpgradeModal from '../components/common/UpgradeModal'
 
 /**
  * Componente LoadSurvey (Levantamento de Carga)
@@ -40,6 +41,10 @@ const LoadSurvey = () => {
   const [surveys, setSurveys] = useState([]) // Lista de levantamentos históricos
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false) // Controle do Modal de Upgrade
+
+  // Constante de Limite Gratuito
+  const LOAD_SURVEY_LIMIT = 3
 
   // Valores padrão comerciais de disjuntores (Amperes)
   const standardBreakers = [10, 16, 20, 25, 32, 40, 50, 63, 70, 80, 90, 100, 125, 150, 175, 200, 225, 250]
@@ -129,6 +134,11 @@ const LoadSurvey = () => {
   const handleSave = async () => {
     if (!user) return alert('Faça login para salvar.')
     if (loads.length === 0) return alert('Adicione pelo menos uma carga.')
+
+    // Verifica Limite Gratuito (Apenas para novos registros)
+    if (!currentSurveyId && surveys.length >= LOAD_SURVEY_LIMIT) {
+      return setIsModalOpen(true)
+    }
 
     let title = ''
     if (!currentSurveyId) {
@@ -474,6 +484,13 @@ const LoadSurvey = () => {
             </div>
          </section>
       </aside>
+      {/* Modal de Upgrade */}
+      <UpgradeModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        limitName="Levantamentos" 
+        currentCount={LOAD_SURVEY_LIMIT} 
+      />
     </div>
   )
 }

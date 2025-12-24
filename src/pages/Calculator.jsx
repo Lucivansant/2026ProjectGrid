@@ -19,6 +19,7 @@ import {
   METHOD_TO_COLUMN_INDEX, 
   STANDARD_SIZES 
 } from '../lib/electricalData'
+import UpgradeModal from '../components/common/UpgradeModal'
 
 /**
  * Componente Calculator (Calculadora)
@@ -27,7 +28,11 @@ import {
  */
 const Calculator = () => {
   // Estado de Autenticação
+  // Estado de Autenticação
   const [user, setUser] = useState(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  
+  const CALCULATION_LIMIT = 3
 
   // Estado do Formulário de Entrada
   const [formData, setFormData] = useState({
@@ -133,6 +138,12 @@ const Calculator = () => {
    * 5. Combinar com o disjuntor e validar a coordenação.
    */
   const handleCalculate = async () => {
+    // Verificação de Limite Gratuito
+    if (history.length >= CALCULATION_LIMIT) {
+      setIsModalOpen(true)
+      return
+    }
+
     setCalculating(true)
     const { system, voltage, power, pf, length, vd, method, material, fct, fca, circuitType } = formData
     
@@ -491,6 +502,14 @@ const Calculator = () => {
             <p className="text-xs font-bold leading-tight">Consultar tabelas NBR 5410 completas</p>
         </div>
       </aside>
+
+
+      <UpgradeModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        limitName="Cálculos" 
+        currentCount={CALCULATION_LIMIT} 
+      />
     </div>
   )
 }
