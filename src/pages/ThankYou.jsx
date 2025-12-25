@@ -33,9 +33,9 @@ const ThankYou = () => {
                         <Mail className="w-5 h-5 text-indigo-600" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wide">Verifique seu E-mail</h3>
+                        <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wide">Tudo Pronto!</h3>
                         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                            Enviamos um link exclusivo de acesso para você definir sua senha segura.
+                            Seu pagamento foi confirmado. Se você já tem senha, basta acessar. Se é novo, verifique seu e-mail.
                         </p>
                     </div>
                 </div>
