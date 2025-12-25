@@ -347,7 +347,7 @@ const Dashboard = () => {
            </div>
 
            <div 
-             onClick={() => navigate('/plans')}
+            onClick={() => navigate('/dashboard/plans')}
              className="p-6 border border-indigo-100 bg-indigo-50/30 rounded flex items-center justify-between group cursor-pointer hover:border-indigo-200 transition-colors"
            >
               <div>
