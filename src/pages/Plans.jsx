@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Check, X, Star, Zap, Shield, TrendingUp, Clock, FileCheck, ArrowLeft } from 'lucide-react'
+import { Check, X, Star, Zap, Shield, TrendingUp, Clock, FileCheck, ArrowLeft, UserCheck, MessageCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const Plans = ({ isInternal = false }) => {
   const [userEmail, setUserEmail] = useState('')
   const [userPlan, setUserPlan] = useState('free') // Default to free
+  const [isRetentionModalOpen, setIsRetentionModalOpen] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -230,6 +231,51 @@ const Plans = ({ isInternal = false }) => {
                  </p>
               </div>
            </div>
+          {userPlan === 'pro' && (
+            <div className="mt-8 text-center animate-in fade-in duration-700 delay-300">
+               <button 
+                 onClick={() => setIsRetentionModalOpen(true)}
+                 className="text-slate-400 hover:text-indigo-600 text-xs font-bold uppercase tracking-widest transition-colors"
+               >
+                 Gerenciar minha assinatura
+               </button>
+            </div>
+          )}
+
+          {/* Retention Modal */}
+          {isRetentionModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsRetentionModalOpen(false)}></div>
+              <div className="relative bg-white w-full max-w-md rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 p-8 text-center space-y-6">
+                 <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto text-indigo-600">
+                    <UserCheck className="w-8 h-8" />
+                 </div>
+                 <div>
+                    <h3 className="text-xl font-black text-slate-900">Precisa de ajuda com o Plano?</h3>
+                    <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                       Para alterações no plano, cancelamentos ou dúvidas sobre cobrança, nossa equipe de <strong>Suporte Premium</strong> está pronta para te atender pessoalmente no WhatsApp.
+                    </p>
+                 </div>
+                 <div className="grid gap-3">
+                    <a 
+                      href="https://wa.me/5511999999999?text=Olá,%20sou%20cliente%20PRO%20e%20gostaria%20de%20falar%20sobre%20minha%20assinatura." 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"
+                    >
+                       <MessageCircle className="w-5 h-5" />
+                       Falar com Suporte no WhatsApp
+                    </a>
+                    <button 
+                      onClick={() => setIsRetentionModalOpen(false)}
+                      className="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-3.5 rounded-lg transition-all"
+                    >
+                       Voltar para o App
+                    </button>
+                 </div>
+              </div>
+            </div>
+          )}
         </div>
 
       </main>
