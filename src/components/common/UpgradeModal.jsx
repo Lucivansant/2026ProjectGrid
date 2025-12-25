@@ -1,6 +1,9 @@
 import { X, Check, Lock, Star, TrendingUp } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 const UpgradeModal = ({ isOpen, onClose, limitName, currentCount }) => {
+  const navigate = useNavigate() // Hook para navegação interna
+
   if (!isOpen) return null
 
   return (
@@ -59,7 +62,7 @@ const UpgradeModal = ({ isOpen, onClose, limitName, currentCount }) => {
            </div>
 
            <button 
-             onClick={() => window.open('https://projectgrid.com.br/pro', '_blank')} 
+             onClick={() => { onClose(); navigate('/plans') }} 
              className="w-full bg-slate-900 hover:bg-black text-white py-4 rounded-lg font-bold text-xs uppercase tracking-widest shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
            >
              <Lock className="w-4 h-4 text-emerald-400 group-hover:text-emerald-300 transition-colors" />
