@@ -25,7 +25,9 @@ import {
   Tag,
   Trash2,
   FlipHorizontal,
-  Ruler
+  Ruler,
+  Copy,
+  ClipboardPaste
 } from 'lucide-react'
 
 // Constantes
@@ -55,8 +57,8 @@ const FloorPlan = () => {
           }
       }
 
-      // 2. Fallback to Grid Snap
-      return { x: snapToGrid(x), y: snapToGrid(y), snapped: false }
+      // 2. Fallback to Grid Snap (DISABLED per user request)
+      return { x, y, snapped: false }
   }
   // --- Estados da Ferramenta ---
   const [tool, setTool] = useState('select') // select, wall, wire, room, dimension, text
@@ -88,6 +90,8 @@ const FloorPlan = () => {
   const [wiringStartId, setWiringStartId] = useState(null) // ID do componente onde o fio começou
   const [transformText, setTransformText] = useState('') // Texto de transformação (ex: ângulo)
   const [clipboard, setClipboard] = useState(null) // Para Copy/Paste
+  const [dragFeedback, setDragFeedback] = useState([]) // Feedback visual de drag {x, y, text}
+  const [snapIndicator, setSnapIndicator] = useState(null) // {x, y} para mostrar a cruz ao snappar
 
   // Refs
   const stageRef = useRef(null)
@@ -176,6 +180,65 @@ const FloorPlan = () => {
     return () => clearInterval(saveTimer)
   }, [walls, components])
 
+  // --- Copy / Paste Logic ---
+  const handleCopy = () => {
+        if (!selectedId) return
+        // Verifica o tipo
+        if (selectedId.toString().startsWith('comp-')) {
+            const comp = components.find(c => c.id === selectedId)
+            if (comp) setClipboard({ type: 'component', data: comp })
+        } else if (selectedId.toString().startsWith('wire-')) {
+           // Wires são complexos de copiar isolados
+        } else if (selectedId.toString().startsWith('dim-')) {
+             const dim = dimensionsList.find(d => d.id === selectedId)
+             if (dim) setClipboard({ type: 'dimension', data: dim })
+        } else if (selectedId.toString().startsWith('text-')) {
+             const txt = labels.find(t => t.id === selectedId)
+             if (txt) setClipboard({ type: 'text', data: txt })
+        } else {
+             // Wall
+             const wall = walls.find(w => w.id.toString() === selectedId)
+             if (wall) setClipboard({ type: 'wall', data: wall })
+        }
+  }
+
+  const handlePaste = () => {
+        if (!clipboard) return
+        
+        const offset = 20 // Posição deslocada
+        
+        if (clipboard.type === 'component') {
+            const newComp = {
+                ...clipboard.data,
+                id: `comp-${Date.now()}`,
+                x: clipboard.data.x + offset,
+                y: clipboard.data.y + offset
+            }
+            setComponents(prev => [...prev, newComp])
+            setSelectedId(newComp.id)
+        } else if (clipboard.type === 'wall') {
+            const newWall = {
+                ...clipboard.data,
+                id: Date.now(),
+                x1: clipboard.data.x1 + offset,
+                y1: clipboard.data.y1 + offset,
+                x2: clipboard.data.x2 + offset,
+                y2: clipboard.data.y2 + offset
+            }
+            setWalls(prev => [...prev, newWall])
+            setSelectedId(newWall.id.toString())
+        } else if (clipboard.type === 'text') {
+             const newText = {
+                 ...clipboard.data,
+                 id: `text-${Date.now()}`,
+                 x: clipboard.data.x + offset,
+                 y: clipboard.data.y + offset
+             }
+             setLabels(prev => [...prev, newText])
+             setSelectedId(newText.id)
+        }
+  }
+
   // --- Keyboard Shortcuts (Copy/Paste/Delete) ---
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -188,65 +251,12 @@ const FloorPlan = () => {
 
         // Copy (Ctrl+C)
         if (e.ctrlKey && e.key === 'c') {
-            if (!selectedId) return
-            // Verifica o tipo
-            if (selectedId.toString().startsWith('comp-')) {
-                const comp = components.find(c => c.id === selectedId)
-                if (comp) setClipboard({ type: 'component', data: comp })
-            } else if (selectedId.toString().startsWith('wire-')) {
-               // Wires são complexos de copiar isolados (dependem de comps), 
-               // por simplicidade vamos ignorar ou copiar só propriedades?
-               // Vamos ignorar wires por enquanto no copy/paste MVP
-            } else if (selectedId.toString().startsWith('dim-')) {
-                 const dim = dimensionsList.find(d => d.id === selectedId)
-                 if (dim) setClipboard({ type: 'dimension', data: dim })
-            } else if (selectedId.toString().startsWith('text-')) {
-                 const txt = labels.find(t => t.id === selectedId)
-                 if (txt) setClipboard({ type: 'text', data: txt })
-            } else {
-                 // Wall
-                 const wall = walls.find(w => w.id.toString() === selectedId)
-                 if (wall) setClipboard({ type: 'wall', data: wall })
-            }
+            handleCopy()
         }
-
 
         // Paste (Ctrl+V)
         if (e.ctrlKey && e.key === 'v') {
-            if (!clipboard) return
-            
-            const offset = 20 // Posição deslocada
-            
-            if (clipboard.type === 'component') {
-                const newComp = {
-                    ...clipboard.data,
-                    id: `comp-${Date.now()}`,
-                    x: clipboard.data.x + offset,
-                    y: clipboard.data.y + offset
-                }
-                setComponents(prev => [...prev, newComp])
-                setSelectedId(newComp.id)
-            } else if (clipboard.type === 'wall') {
-                const newWall = {
-                    ...clipboard.data,
-                    id: Date.now(),
-                    x1: clipboard.data.x1 + offset,
-                    y1: clipboard.data.y1 + offset,
-                    x2: clipboard.data.x2 + offset,
-                    y2: clipboard.data.y2 + offset
-                }
-                setWalls(prev => [...prev, newWall])
-                setSelectedId(newWall.id.toString())
-            } else if (clipboard.type === 'text') {
-                 const newText = {
-                     ...clipboard.data,
-                     id: `text-${Date.now()}`,
-                     x: clipboard.data.x + offset,
-                     y: clipboard.data.y + offset
-                 }
-                 setLabels(prev => [...prev, newText])
-                 setSelectedId(newText.id)
-            }
+            handlePaste()
         }
     }
 
@@ -360,9 +370,14 @@ const FloorPlan = () => {
         const relativePos = stage.getRelativePointerPosition()
         
         if (relativePos) {
-            const x = relativePos.x
-            const y = relativePos.y
+            // Apply Snapping (Vertex Only, Grid is disabled in helper)
+            const sn = getSnappedPoint(relativePos.x, relativePos.y)
+            const x = sn.x
+            const y = sn.y
             
+            // Set indicator if snapped
+            if (sn.snapped) setSnapIndicator({x, y})
+
             isDrawing.current = true
             setNewWall({
                 x1: x, y1: y, x2: x, y2: y
@@ -373,9 +388,14 @@ const FloorPlan = () => {
         const relativePos = stage.getRelativePointerPosition()
         
         if (relativePos) {
-            const x = relativePos.x
-            const y = relativePos.y
+            // Room Start Snapping
+            const sn = getSnappedPoint(relativePos.x, relativePos.y)
+            const x = sn.x
+            const y = sn.y
             
+             // Set indicator if snapped
+            if (sn.snapped) setSnapIndicator({x, y})
+
             isDrawing.current = true
             setNewRoom({
                 x1: x, y1: y, x2: x, y2: y
@@ -449,48 +469,58 @@ const FloorPlan = () => {
         const relativePos = stage.getRelativePointerPosition()
         
         if (relativePos && newWall) {
-            const x = relativePos.x
-            const y = relativePos.y
-
-            // Free Draw (No Grid Snap)
-            let targetX = x
-            let targetY = y
+            const snap = getSnappedPoint(relativePos.x, relativePos.y)
+            let targetX = snap.x
+            let targetY = snap.y
             
-            // Angle Snapping (Esquadro)
-            // Lógica: Se o ângulo atual estiver próximo de 0, 90, 180, 270 ou 45, snap.
-            const dx = x - newWall.x1
-            const dy = y - newWall.y1
-            const dist = Math.sqrt(dx*dx + dy*dy)
-            
-            let angle = Math.atan2(dy, dx) * 180 / Math.PI
-            if (angle < 0) angle += 360
-            
-            // Angles to snap to: 0, 45, 90, 135, 180, 225, 270, 315, 360
-            const snapAngles = [0, 45, 90, 135, 180, 225, 270, 315, 360]
-            const ANGLE_THRESHOLD = 3 // graus
-            
-            let snappedAngle = null
-            
-            for (let a of snapAngles) {
-                if (Math.abs(angle - a) < ANGLE_THRESHOLD || Math.abs(angle - a) > (360 - ANGLE_THRESHOLD)) {
-                    // Snap it!
-                    // Recalcula targetX/Y baseado na distancia e angulo snapado
-                    const rad = a * Math.PI / 180
-                    targetX = newWall.x1 + dist * Math.cos(rad)
-                    targetY = newWall.y1 + dist * Math.sin(rad)
-                    snappedAngle = a % 360
-                    break
-                }
+            // Set Indicator
+            if (snap.snapped) {
+                 setSnapIndicator({x: snap.x, y: snap.y})
+            } else {
+                 setSnapIndicator(null)
             }
 
-            // Ortogonal "Forçado" se muito próximo? Não, o snap angle já cuida disso.
+            // Apply Angle Snapping ONLY if not snapped to a vertex
+            if (!snap.snapped) {
+                const dx = targetX - newWall.x1
+                const dy = targetY - newWall.y1
+                const dist = Math.sqrt(dx*dx + dy*dy)
+                
+                let angle = Math.atan2(dy, dx) * 180 / Math.PI
+                if (angle < 0) angle += 360
+                
+                // Angles to snap to: 0, 45, 90, 135, 180, 225, 270, 315, 360
+                const snapAngles = [0, 90, 180, 270, 360] // Removed diagonals for cleaner orthogonal drawing? User didn't ask, but standard. Use original set if safer.
+                // Keeping original set
+                const originalSnapAngles = [0, 45, 90, 135, 180, 225, 270, 315, 360]
+                const ANGLE_THRESHOLD = 5 // Increased slightly
 
-            setNewWall(prev => ({ 
-                ...prev, 
-                x2: targetX, 
-                y2: targetY,
-                angleText: snappedAngle !== null ? `${snappedAngle}°` : null
-            }))
+                let snappedAngle = null
+                
+                for (let a of originalSnapAngles) {
+                    if (Math.abs(angle - a) < ANGLE_THRESHOLD || Math.abs(angle - a) > (360 - ANGLE_THRESHOLD)) {
+                        // Snap it!
+                        const rad = a * Math.PI / 180
+                        targetX = newWall.x1 + dist * Math.cos(rad)
+                        targetY = newWall.y1 + dist * Math.sin(rad)
+                        snappedAngle = a % 360
+                        break
+                    }
+                }
+                 setNewWall(prev => ({ 
+                    ...prev, 
+                    x2: targetX, 
+                    y2: targetY,
+                    angleText: snappedAngle !== null ? `${snappedAngle}°` : null
+                }))
+            } else {
+                 setNewWall(prev => ({ 
+                    ...prev, 
+                    x2: targetX, 
+                    y2: targetY,
+                    angleText: 'Snap'
+                }))
+            }
         }
     } else if (tool === 'room' && isDrawing.current && newRoom) {
          e.evt.preventDefault()
@@ -498,12 +528,24 @@ const FloorPlan = () => {
          const relativePos = stage.getRelativePointerPosition()
          
          if (relativePos) {
-             setNewRoom(prev => ({ ...prev, x2: relativePos.x, y2: relativePos.y }))
+             const snap = getSnappedPoint(relativePos.x, relativePos.y)
+             const x = snap.x
+             const y = snap.y
+
+             // Set Indicator
+            if (snap.snapped) {
+                 setSnapIndicator({x, y})
+            } else {
+                 setSnapIndicator(null)
+            }
+
+             setNewRoom(prev => ({ ...prev, x2: x, y2: y }))
          }
     }
   }
 
   const handlePointerUp = () => {
+    setSnapIndicator(null)
     if (isDrawing.current) {
         isDrawing.current = false
         if (tool === 'wall' && newWall) {
@@ -971,7 +1013,7 @@ const FloorPlan = () => {
                         text={comp.properties?.power || '100'} 
                         fontSize={10} fontStyle="bold" fill="#0f172a" 
                         align="center" verticalAlign="middle" 
-                        offsetX={10} offsetY={5} width={20}
+                        offsetX={20} offsetY={5} width={40}
                     />
 
                     {/* Circuito (Inferior Esquerdo) */}
@@ -1382,6 +1424,23 @@ const FloorPlan = () => {
         <div className="h-px bg-slate-200 my-1"></div>
         <ToolButton 
             active={false} 
+            onClick={handleCopy} 
+            icon={Copy} 
+            tooltip="Copiar (Ctrl+C)" 
+            disabled={!selectedId}
+            className={!selectedId ? "opacity-50 cursor-not-allowed" : ""}
+        />
+        <ToolButton 
+            active={false} 
+            onClick={handlePaste} 
+            icon={ClipboardPaste} 
+            tooltip="Colar (Ctrl+V)" 
+            disabled={!clipboard}
+            className={!clipboard ? "opacity-50 cursor-not-allowed" : ""}
+        />
+        <div className="h-px bg-slate-200 my-1"></div>
+        <ToolButton 
+            active={false} 
             onClick={handleExport} 
             icon={Download} 
             tooltip="Exportar Imagem" 
@@ -1439,7 +1498,139 @@ const FloorPlan = () => {
                     const angle = Math.atan2(dy, dx) * 180 / Math.PI
 
                     return (
-                        <Group key={wall.id}>
+                        <Group 
+                            key={wall.id}
+                            draggable={tool === 'select'}
+                            onDragStart={() => {
+                                setDragFeedback([])
+                            }}
+                            onDragMove={(e) => {
+                                const node = e.target
+                                const dx = node.x()
+                                const dy = node.y()
+                                
+                                const newFeedback = []
+                                const tolerance = 20
+
+                                // Calculate angle for connected walls
+                                walls.forEach(w => {
+                                    if (w.id === wall.id) return // Skip self (or show self angle too?)
+
+                                    let wx1 = w.x1
+                                    let wy1 = w.y1
+                                    let wx2 = w.x2
+                                    let wy2 = w.y2
+                                    let modified = false
+
+                                    // Check connections (simulating the move)
+                                    // Start Point of W connected to Wall
+                                    if (Math.abs(w.x1 - wall.x1) < tolerance && Math.abs(w.y1 - wall.y1) < tolerance) {
+                                        wx1 += dx; wy1 += dy; modified = true;
+                                    } else if (Math.abs(w.x1 - wall.x2) < tolerance && Math.abs(w.y1 - wall.y2) < tolerance) {
+                                        wx1 += dx; wy1 += dy; modified = true;
+                                    }
+
+                                    // End Point of W connected to Wall
+                                    if (Math.abs(w.x2 - wall.x1) < tolerance && Math.abs(w.y2 - wall.y1) < tolerance) {
+                                        wx2 += dx; wy2 += dy; modified = true;
+                                    } else if (Math.abs(w.x2 - wall.x2) < tolerance && Math.abs(w.y2 - wall.y2) < tolerance) {
+                                        wx2 += dx; wy2 += dy; modified = true;
+                                    }
+
+                                    if (modified) {
+                                        // Calculate angle
+                                        const dX = wx2 - wx1
+                                        const dY = wy2 - wy1
+                                        let angle = Math.atan2(dY, dX) * 180 / Math.PI
+                                        if (angle < 0) angle += 360
+                                        
+                                        // Position for text (midpoint)
+                                        const mx = (wx1 + wx2) / 2
+                                        const my = (wy1 + wy2) / 2
+                                        
+                                        newFeedback.push({
+                                            x: mx,
+                                            y: my,
+                                            text: `${angle.toFixed(1)}°`
+                                        })
+                                    }
+                                })
+                                setDragFeedback(newFeedback)
+                            }}
+                            onDragEnd={(e) => {
+                                const node = e.target
+                                const dx = node.x()
+                                const dy = node.y()
+                                
+                                setDragFeedback([])
+                                
+                                // Reset position so we can drive by state
+                                node.position({ x: 0, y: 0 })
+
+                                if (dx === 0 && dy === 0) return
+
+                                // 1. Update the Dragged Wall
+                                const newX1 = wall.x1 + dx
+                                const newY1 = wall.y1 + dy
+                                const newX2 = wall.x2 + dx
+                                const newY2 = wall.y2 + dy
+
+                                // 2. Update Connected Walls
+                                const tolerance = 20 // Increased tolerance for easier snapping
+                                
+                                setWalls(prevWalls => {
+                                    return prevWalls.map(w => {
+                                        if (w.id === wall.id) {
+                                            return { ...w, x1: newX1, y1: newY1, x2: newX2, y2: newY2 }
+                                        }
+
+                                        let wx1 = w.x1
+                                        let wy1 = w.y1
+                                        let wx2 = w.x2
+                                        let wy2 = w.y2
+                                        let modified = false
+
+                                        // Check Start Point connection to Dragged Wall Start
+                                        if (Math.abs(w.x1 - wall.x1) < tolerance && Math.abs(w.y1 - wall.y1) < tolerance) {
+                                            wx1 += dx; wy1 += dy; modified = true;
+                                        } 
+                                        // Check Start Point connection to Dragged Wall End
+                                        else if (Math.abs(w.x1 - wall.x2) < tolerance && Math.abs(w.y1 - wall.y2) < tolerance) {
+                                            wx1 += dx; wy1 += dy; modified = true;
+                                        }
+
+                                        // Check End Point connection to Dragged Wall Start
+                                        if (Math.abs(w.x2 - wall.x1) < tolerance && Math.abs(w.y2 - wall.y1) < tolerance) {
+                                            wx2 += dx; wy2 += dy; modified = true;
+                                        }
+                                        // Check End Point connection to Dragged Wall End
+                                        else if (Math.abs(w.x2 - wall.x2) < tolerance && Math.abs(w.y2 - wall.y2) < tolerance) {
+                                            wx2 += dx; wy2 += dy; modified = true;
+                                        }
+
+                                        return modified ? { ...w, x1: wx1, y1: wy1, x2: wx2, y2: wy2 } : w
+                                    })
+                                })
+
+                                // 3. Update Components on the Wall
+                                const distToSegment = (px, py, x1, y1, x2, y2) => {
+                                    const l2 = (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1);
+                                    if (l2 === 0) return Math.sqrt((px-x1)*(px-x1) + (py-y1)*(py-y1));
+                                    let t = ((px-x1)*(x2-x1) + (py-y1)*(y2-y1)) / l2;
+                                    t = Math.max(0, Math.min(1, t));
+                                    const projx = x1 + t * (x2-x1);
+                                    const projy = y1 + t * (y2-y1);
+                                    return Math.sqrt((px-projx)*(px-projx) + (py-projy)*(py-projy));
+                                }
+                                
+                                setComponents(prevComps => prevComps.map(c => {
+                                    if (distToSegment(c.x, c.y, wall.x1, wall.y1, wall.x2, wall.y2) < 10) {
+                                        return { ...c, x: c.x + dx, y: c.y + dy }
+                                    }
+                                    return c
+                                }))
+                            }}
+                        >
                             <Line
                                 id={wall.id.toString()}
                                 points={[wall.x1, wall.y1, wall.x2, wall.y2]}
@@ -1451,6 +1642,16 @@ const FloorPlan = () => {
                                 }}
                                 onTap={() => {
                                     if (tool === 'select') setSelectedId(wall.id.toString())
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (tool === 'select') {
+                                        const container = e.target.getStage().container();
+                                        container.style.cursor = "move";
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    const container = e.target.getStage().container();
+                                    container.style.cursor = "default";
                                 }}
                             />
                             {/* Texto de Medida */}
@@ -1464,6 +1665,7 @@ const FloorPlan = () => {
                                 rotation={angle}
                                 offsetY={-10} // Empurra para "cima" da linha (lado)
                                 offsetX={15} // Centraliza mais ou menos
+                                listening={false}
                             />
                         </Group>
                     )
@@ -1600,6 +1802,33 @@ const FloorPlan = () => {
                          />
                      )
                 })()}
+
+                {/* Drag Feedback (Angles) */}
+                {dragFeedback.map((fb, i) => (
+                    <Text
+                        key={`df-${i}`}
+                        x={fb.x}
+                        y={fb.y}
+                        text={fb.text}
+                        fontSize={14}
+                        fontStyle="bold"
+                        fill="#4f46e5"
+                        align="center"
+                        offsetX={20}
+                        offsetY={20}
+                        padding={4}
+                        listening={false}
+                    />
+                ))}
+
+                {/* Snap Indicator (Crosshair) */}
+                {snapIndicator && (
+                    <Group x={snapIndicator.x} y={snapIndicator.y}>
+                        <Line points={[-15, 0, 15, 0]} stroke="#ef4444" strokeWidth={1} dash={[4, 4]} listening={false} />
+                        <Line points={[0, -15, 0, 15]} stroke="#ef4444" strokeWidth={1} dash={[4, 4]} listening={false} />
+                        <Circle radius={4} stroke="#ef4444" strokeWidth={1} fill="transparent" listening={false} />
+                    </Group>
+                )}
 
                 {/* Parede Temporária (Ghost) */}
                 {newWall && (
