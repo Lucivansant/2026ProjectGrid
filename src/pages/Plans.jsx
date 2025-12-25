@@ -5,10 +5,15 @@ import { supabase } from '../lib/supabase'
 
 const Plans = ({ isInternal = false }) => {
   const [userEmail, setUserEmail] = useState('')
+  const [userPlan, setUserPlan] = useState('free') // Default to free
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) setUserEmail(user.email)
+      if (user) {
+        setUserEmail(user.email)
+        // Check metadata for plan, fallback to 'free'
+        setUserPlan(user.user_metadata?.plan || 'free')
+      }
     })
   }, [])
 
@@ -71,7 +76,12 @@ const Plans = ({ isInternal = false }) => {
         <div className="grid md:grid-cols-2 gap-8 items-start">
            
            {/* Plano Gratuito */}
-           <div className="bg-white border border-slate-200 rounded-2xl p-8 relative">
+           <div className={`bg-white border rounded-2xl p-8 relative ${userPlan === 'free' ? 'border-2 border-slate-900 shadow-xl' : 'border-slate-200'}`}>
+              {userPlan === 'free' && (
+                <div className="absolute top-0 right-0 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-bl-lg rounded-tr-lg">
+                   Seu Plano Atual
+                </div>
+              )}
               <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Iniciante</h3>
               <div className="text-3xl font-black text-slate-900 mb-6">Grátis</div>
               <p className="text-xs text-slate-400 font-medium mb-8 min-h-[40px]">
@@ -106,13 +116,24 @@ const Plans = ({ isInternal = false }) => {
               </ul>
 
               {/* Botão para criar conta no plano gratuito */}
-              <Link to="/login?action=signup" className="block w-full text-center bg-slate-100 hover:bg-slate-200 text-slate-600 py-4 rounded-lg font-bold text-xs uppercase tracking-widest transition-colors">
-                 Começar Grátis
-              </Link>
+              {userPlan === 'free' ? (
+                <button disabled className="block w-full text-center bg-slate-100 text-slate-400 py-4 rounded-lg font-bold text-xs uppercase tracking-widest cursor-not-allowed">
+                   Seu Plano Atual
+                </button>
+              ) : (
+                 <div className="block w-full text-center py-4 rounded-lg font-bold text-xs uppercase tracking-widest text-slate-400">
+                    Plano Básico
+                 </div>
+              )}
            </div>
 
            {/* Plano PRO */}
-           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 relative shadow-2xl transform md:-translate-y-4">
+           <div className={`bg-slate-900 border border-slate-800 rounded-2xl p-8 relative shadow-2xl transform md:-translate-y-4 ${userPlan === 'pro' ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900' : ''}`}>
+           {userPlan === 'pro' && (
+                <div className="absolute top-0 left-0 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-br-lg rounded-tl-lg">
+                   Seu Plano Atual
+                </div>
+              )}
               <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-bl-lg rounded-tr-lg">
                  Mais Popular
               </div>
@@ -152,12 +173,19 @@ const Plans = ({ isInternal = false }) => {
                  </li>
               </ul>
 
-              <button 
-                 onClick={handleCheckout}
-                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-lg font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-900/50 transition-all hover:-translate-y-1 active:scale-[0.98]"
-              >
-                 Quero Ser Profissional
-              </button>
+              {userPlan === 'pro' ? (
+                  <button disabled className="w-full bg-green-600 text-white py-4 rounded-lg font-bold text-xs uppercase tracking-widest cursor-default flex items-center justify-center gap-2">
+                     <Check className="w-4 h-4" />
+                     Plano Ativo
+                  </button>
+              ) : (
+                <button 
+                  onClick={handleCheckout}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-lg font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-900/50 transition-all hover:-translate-y-1 active:scale-[0.98]"
+               >
+                  Quero Ser Profissional
+               </button>
+              )}
               <div className="mt-6 flex items-center justify-center gap-2 text-slate-400">
                  <Shield className="w-4 h-4" />
                  <p className="text-[11px] font-bold uppercase tracking-wider">
