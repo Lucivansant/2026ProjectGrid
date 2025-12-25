@@ -46,6 +46,22 @@ const Login = () => {
    * Se Login: navega para /dashboard em caso de sucesso.
    * Se Cadastro: solicita ao usuário que verifique o e-mail em caso de sucesso.
    */
+  /**
+   * Verifica se o usuário já existe usando RPC público (workaround)
+   */
+  const checkUserExists = async (emailToCheck) => {
+    try {
+      const { data } = await supabase.rpc('get_user_metrics')
+      if (data && Array.isArray(data)) {
+        const userExists = data.some(u => u.user_email === emailToCheck)
+        return userExists
+      }
+    } catch (err) {
+      console.warn('RPC check ignored:', err)
+    }
+    return false
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -58,6 +74,12 @@ const Login = () => {
         if (error) throw error
         navigate('/dashboard')
       } else {
+        // Antes de registrar, verifica existência (Pre-Check)
+        const exists = await checkUserExists(email)
+        if (exists) {
+           throw new Error('User already registered')
+        }
+
         // Registra um novo usuário
         const { error } = await supabase.auth.signUp({ 
           email, 
@@ -72,7 +94,17 @@ const Login = () => {
       }
     } catch (error) {
       // Exibe erros de autenticação (ex: credenciais inválidas, usuário já existe)
-      setMessage({ text: error.message, type: 'error' })
+      // Tradução de erros comuns do Supabase
+      let customMessage = error.message
+      if (error.message.includes('User already registered')) {
+        customMessage = 'Este e-mail já está cadastrado. Por favor, faça login.'
+      } else if (error.message.includes('Invalid login credentials')) {
+        customMessage = 'E-mail ou senha incorretos.'
+      } else if (error.message.includes('Password should be at least')) {
+        customMessage = 'A senha deve ter pelo menos 6 caracteres.'
+      }
+      
+      setMessage({ text: customMessage, type: 'error' })
     } finally {
       setLoading(false)
     }

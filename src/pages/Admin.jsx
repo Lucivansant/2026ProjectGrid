@@ -34,6 +34,7 @@ const Admin = () => {
   // Estado de Métricas do Dashboard e Logs
   const [metrics, setMetrics] = useState({ total_users: 0, total_clients: 0, total_quotes: 0 }) // Estatísticas de alto nível
   const [userMetrics, setUserMetrics] = useState([]) // Métricas por usuário
+  const [salesLogs, setSalesLogs] = useState([]) // Logs de Vendas (Kiwify)
   const [feedbacks, setFeedbacks] = useState([]) // Arquivo de feedbacks dos usuários
   
   // Estado de Gerenciamento de Produtos
@@ -109,7 +110,15 @@ const Admin = () => {
     const { data: fb } = await supabase.rpc('get_all_feedbacks')
     if (fb) setFeedbacks(fb)
 
-    // 4. Busca Lista de Produtos Recomendados
+    // 4. Busca Logs de Vendas
+    const { data: sl } = await supabase
+      .from('sales_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50)
+    if (sl) setSalesLogs(sl)
+
+    // 5. Busca Lista de Produtos Recomendados
     const { data: p } = await supabase.from('recommended_products').select('*').order('created_at', { ascending: false })
     if (p) setProducts(p)
   }
@@ -356,6 +365,59 @@ const Admin = () => {
                               </td>
                            </tr>
                         ))}
+                     </tbody>
+                  </table>
+               </div>
+            </section>
+
+            {/* Histórico de Vendas (Sales Logs) */}
+            <section className="bg-white rounded border border-slate-200 shadow-xs overflow-hidden">
+               <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Auditoria de Vendas (Kiwify)</h3>
+                  <Activity className="w-4 h-4 text-slate-300" />
+               </div>
+               <div className="p-0">
+                  <table className="w-full text-left border-collapse">
+                     <thead>
+                        <tr className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                           <th className="px-6 py-4">Data</th>
+                           <th className="px-6 py-4">Cliente</th>
+                           <th className="px-6 py-4">Status</th>
+                           <th className="px-6 py-4">Mensagem</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                        {salesLogs.length === 0 ? (
+                           <tr><td colSpan="4" className="p-8 text-center text-[10px] font-bold text-slate-300 uppercase italic">Nenhuma venda registrada ainda.</td></tr>
+                        ) : (
+                           salesLogs.map(log => (
+                              <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                                 <td className="px-6 py-3 text-[10px] uppercase font-bold text-slate-500">
+                                    {new Date(log.created_at).toLocaleDateString('pt-BR')} <span className="text-slate-300">|</span> {new Date(log.created_at).toLocaleTimeString('pt-BR')}
+                                 </td>
+                                 <td className="px-6 py-3">
+                                    <div className="flex flex-col">
+                                       <span className="text-xs font-bold text-slate-900">{log.customer_email}</span>
+                                       <span className="text-[10px] font-bold text-slate-400 uppercase">{log.customer_name}</span>
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-3">
+                                    <span className={`inline-flex items-center px-2 py-1 rounded text-[9px] font-black uppercase tracking-wide
+                                       ${log.status === 'success' ? 'bg-emerald-100 text-emerald-700' : ''}
+                                       ${log.status === 'blocked' ? 'bg-amber-100 text-amber-700' : ''}
+                                       ${log.status === 'error' ? 'bg-rose-100 text-rose-700' : ''}
+                                    `}>
+                                       {log.status === 'success' && ' APROVADO '}
+                                       {log.status === 'blocked' && ' BLOQUEADO '}
+                                       {log.status === 'error' && ' ERRO '}
+                                    </span>
+                                 </td>
+                                 <td className="px-6 py-3 text-[10px] font-medium text-slate-500">
+                                    {log.message}
+                                 </td>
+                              </tr>
+                           ))
+                        )}
                      </tbody>
                   </table>
                </div>

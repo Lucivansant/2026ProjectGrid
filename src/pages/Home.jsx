@@ -504,10 +504,10 @@ const Home = () => {
              </p>
              
              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-               <a href="http://localhost/PHPconfig/index.php" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto px-8 py-4 bg-indigo-600 rounded-xl font-bold text-white hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2 group">
+               <Link to="/plans" className="w-full sm:w-auto px-8 py-4 bg-indigo-600 rounded-xl font-bold text-white hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-2 group">
                  Conhecer Planos e Preços 
                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-               </a>
+               </Link>
                <Link to="/login" className="w-full sm:w-auto px-8 py-4 bg-white border border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center">
                  Falar com Consultor
                </Link>

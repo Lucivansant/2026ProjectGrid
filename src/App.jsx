@@ -15,6 +15,9 @@ import Financial from './pages/Financial'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 
+import UpdatePassword from './pages/UpdatePassword'
+import ThankYou from './pages/ThankYou'
+
 function App() {
   return (
     <Router>
@@ -23,6 +26,9 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/plans" element={<Plans />} />
+        <Route path="/update-password" element={<UpdatePassword />} />
+        <Route path="/thank-you" element={<ThankYou />} />
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
@@ -34,7 +40,7 @@ function App() {
             <Route path="/clients" element={<Clients />} />
             <Route path="/floor-plan" element={<FloorPlan />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/plans" element={<Plans />} />
+
             <Route path="/financial" element={<Financial />} />
           </Route>
           </Route>
