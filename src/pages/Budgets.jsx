@@ -36,6 +36,7 @@ import UpgradeModal from '../components/common/UpgradeModal'
 const Budgets = () => {
   // Estado de Autenticação e Dados
   const [user, setUser] = useState(null)
+  const [userPlan, setUserPlan] = useState('free')
   const [budgets, setBudgets] = useState([]) // Lista de orçamentos existentes
   const [clients, setClients] = useState([]) // Lista de clientes para seleção
   const [loading, setLoading] = useState(true)
@@ -72,6 +73,7 @@ const Budgets = () => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
       if (user) {
+        setUserPlan(user.user_metadata?.plan || 'free')
         loadBudgets(user.id)
         loadClients(user.id)
       }
@@ -122,7 +124,7 @@ const Budgets = () => {
    * Prepara o modal com valores padrão baseados nos itens do construtor
    */
   const handleUseBuilder = () => {
-    if (budgets.length >= BUDGET_LIMIT) {
+    if (userPlan !== 'pro' && budgets.length >= BUDGET_LIMIT) {
       setIsUpgradeModalOpen(true)
       return
     }
@@ -147,7 +149,7 @@ const Budgets = () => {
     if (!newBudget.client_id) return alert('Selecione um cliente')
     
     // Dupla verificação no salvamento
-    if (budgets.length >= BUDGET_LIMIT) {
+    if (userPlan !== 'pro' && budgets.length >= BUDGET_LIMIT) {
       setIsModalOpen(false)
       setIsUpgradeModalOpen(true)
       return
@@ -312,7 +314,7 @@ const Budgets = () => {
       <div className="lg:col-span-8 space-y-10">
         
         {/* Aviso de Limite */}
-        {budgets.length >= BUDGET_LIMIT && (
+        {userPlan !== 'pro' && budgets.length >= BUDGET_LIMIT && (
           <div className="bg-amber-50 border border-amber-100 p-4 rounded flex items-center justify-between gap-4 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => setIsUpgradeModalOpen(true)}>
              <div className="flex items-center gap-4">
                 <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
@@ -374,7 +376,9 @@ const Budgets = () => {
         <section className="bg-white rounded border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest">Controle de Orçamentos</h3>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{budgets.length} / {BUDGET_LIMIT} Utilizados</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+               {userPlan === 'pro' ? 'ILIMITADO' : `${budgets.length} / ${BUDGET_LIMIT} Utilizados`}
+            </span>
           </div>
           <div className="p-0">
              <table className="w-full text-left border-collapse">
@@ -422,7 +426,7 @@ const Budgets = () => {
                                     {Object.keys(statusStyles).map(s => <option key={s} value={s}>{s}</option>)}
                                   </select>
                                   <button onClick={() => generatePDF(b)} className="p-1.5 text-slate-300 hover:text-indigo-600 transition-colors" title="Exportar Log"><Printer className="w-4 h-4" /></button>
-                                  <button onClick={() => deleteBudget(b.id)} disabled={budgets.length >= BUDGET_LIMIT} className={`p-1.5 transition-colors ${budgets.length >= BUDGET_LIMIT ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`} title="Excluir"><Trash2 className="w-4 h-4" /></button>
+                                  <button onClick={() => deleteBudget(b.id)} disabled={userPlan !== 'pro' && budgets.length >= BUDGET_LIMIT} className={`p-1.5 transition-colors ${userPlan !== 'pro' && budgets.length >= BUDGET_LIMIT ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`} title="Excluir"><Trash2 className="w-4 h-4" /></button>
                                </div>
                             </td>
                           </tr>

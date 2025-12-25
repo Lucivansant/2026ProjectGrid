@@ -25,6 +25,7 @@ import UpgradeModal from '../components/common/UpgradeModal'
 const Clients = () => {
   // Estado de Autenticação e Dados
   const [user, setUser] = useState(null)
+  const [userPlan, setUserPlan] = useState('free')
   const [clients, setClients] = useState([]) // Lista de todos os clientes
   const [loading, setLoading] = useState(true)
 
@@ -45,7 +46,10 @@ const Clients = () => {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
-      if (user) loadClients(user.id)
+      if (user) {
+        setUserPlan(user.user_metadata?.plan || 'free')
+        loadClients(user.id)
+      }
     })
   }, [])
 
@@ -73,7 +77,7 @@ const Clients = () => {
     if (!newClient.name.trim()) return alert('Nome é obrigatório')
 
     // Verificação do limite de registros
-    if (clients.length >= CLIENT_LIMIT) {
+    if (userPlan !== 'pro' && clients.length >= CLIENT_LIMIT) {
       setIsUpgradeModalOpen(true)
       return
     }
@@ -113,7 +117,7 @@ const Clients = () => {
   )
 
   const handleOpenAddModal = () => {
-    if (clients.length >= CLIENT_LIMIT) {
+    if (userPlan !== 'pro' && clients.length >= CLIENT_LIMIT) {
       setIsUpgradeModalOpen(true)
     } else {
       setIsModalOpen(true)
@@ -158,8 +162,10 @@ const Clients = () => {
            </div>
            <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
-                 <div className={`w-2.5 h-2.5 rounded-full ${clients.length >= CLIENT_LIMIT ? 'bg-amber-500' : 'bg-indigo-500'}`}></div>
-                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{clients.length} / {CLIENT_LIMIT} slots</span>
+                 <div className={`w-2.5 h-2.5 rounded-full ${clients.length >= CLIENT_LIMIT && userPlan !== 'pro' ? 'bg-amber-500' : 'bg-indigo-500'}`}></div>
+                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    {userPlan === 'pro' ? 'ILIMITADO' : `${clients.length} / ${CLIENT_LIMIT} slots`}
+                 </span>
               </div>
               <button className="flex items-center gap-2 p-2 text-slate-400 hover:text-slate-900 transition-colors">
                  <Filter className="w-4 h-4" />
@@ -235,8 +241,8 @@ const Clients = () => {
                        <div className="flex items-center justify-end gap-2">
                           <button 
                             onClick={() => handleDeleteClient(client.id)}
-                            disabled={clients.length >= CLIENT_LIMIT}
-                            className={`p-2 transition-colors ${clients.length >= CLIENT_LIMIT ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`}
+                            disabled={userPlan !== 'pro' && clients.length >= CLIENT_LIMIT}
+                            className={`p-2 transition-colors ${userPlan !== 'pro' && clients.length >= CLIENT_LIMIT ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -251,7 +257,7 @@ const Clients = () => {
       </div>
 
       {/* Aviso de Capacidade */}
-      {clients.length >= CLIENT_LIMIT && (
+      {userPlan !== 'pro' && clients.length >= CLIENT_LIMIT && (
         <div className="bg-amber-50 border border-amber-100 p-4 rounded flex items-center justify-between gap-4 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => setIsUpgradeModalOpen(true)}>
            <div className="flex items-center gap-4">
               <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />

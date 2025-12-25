@@ -58,7 +58,7 @@ const UpdatePassword = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden">
         {/* Background Grid */}
-        <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]"></div>
         
         <div className="w-full max-w-md p-8 relative z-10 animate-in fade-in zoom-in-95 duration-500">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">

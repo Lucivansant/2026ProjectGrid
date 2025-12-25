@@ -30,6 +30,7 @@ const Calculator = () => {
   // Estado de Autenticação
   // Estado de Autenticação
   const [user, setUser] = useState(null)
+  const [userPlan, setUserPlan] = useState('free')
   const [isModalOpen, setIsModalOpen] = useState(false)
   
   const CALCULATION_LIMIT = 3
@@ -62,7 +63,10 @@ const Calculator = () => {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
-      if (user) loadHistory(user.id)
+      if (user) {
+        setUserPlan(user.user_metadata?.plan || 'free')
+        loadHistory(user.id)
+      }
     })
   }, [])
 
@@ -139,7 +143,7 @@ const Calculator = () => {
    */
   const handleCalculate = async () => {
     // Verificação de Limite Gratuito
-    if (history.length >= CALCULATION_LIMIT) {
+    if (userPlan !== 'pro' && history.length >= CALCULATION_LIMIT) {
       setIsModalOpen(true)
       return
     }
@@ -466,8 +470,8 @@ const Calculator = () => {
                  <div key={it.id} className="p-4 bg-white border border-slate-200 rounded hover:border-indigo-400 hover:shadow-xs transition-all group relative">
                     <button 
                       onClick={() => handleDelete(it.id)} 
-                      disabled={history.length >= CALCULATION_LIMIT}
-                      className={`absolute top-3 right-3 transition-all ${history.length >= CALCULATION_LIMIT ? 'text-slate-200 cursor-not-allowed opacity-100' : 'text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100'}`}
+                      disabled={userPlan !== 'pro' && history.length >= CALCULATION_LIMIT}
+                      className={`absolute top-3 right-3 transition-all ${userPlan !== 'pro' && history.length >= CALCULATION_LIMIT ? 'text-slate-200 cursor-not-allowed opacity-100' : 'text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100'}`}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>

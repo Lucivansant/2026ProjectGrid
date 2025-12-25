@@ -27,6 +27,7 @@ import UpgradeModal from '../components/common/UpgradeModal'
 const LoadSurvey = () => {
   // Autenticação e Identificação
   const [user, setUser] = useState(null)
+  const [userPlan, setUserPlan] = useState('free')
   const [currentSurveyId, setCurrentSurveyId] = useState(null)
 
   // Estado da Matriz de Carga
@@ -56,7 +57,10 @@ const LoadSurvey = () => {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
-      if (user) loadSurveys(user.id)
+      if (user) {
+        setUserPlan(user.user_metadata?.plan || 'free')
+        loadSurveys(user.id)
+      }
     })
   }, [])
 
@@ -136,7 +140,7 @@ const LoadSurvey = () => {
     if (loads.length === 0) return alert('Adicione pelo menos uma carga.')
 
     // Verifica Limite Gratuito (Apenas para novos registros)
-    if (!currentSurveyId && surveys.length >= LOAD_SURVEY_LIMIT) {
+    if (!currentSurveyId && userPlan !== 'pro' && surveys.length >= LOAD_SURVEY_LIMIT) {
       return setIsModalOpen(true)
     }
 
@@ -384,7 +388,7 @@ const LoadSurvey = () => {
                           <td className="px-6 py-4 text-xs font-bold text-indigo-600 font-mono">{s.total_va} VA</td>
                           <td className="px-6 py-4 text-right space-x-4">
                             <button onClick={() => handleLoadSurvey(s.id)} className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline">Carregar</button>
-                            <button onClick={() => handleDeleteSurvey(s.id)} disabled={surveys.length >= LOAD_SURVEY_LIMIT} className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${surveys.length >= LOAD_SURVEY_LIMIT ? 'text-slate-300 cursor-not-allowed' : 'text-red-400 hover:text-red-600'}`}>Remover</button>
+                            <button onClick={() => handleDeleteSurvey(s.id)} disabled={userPlan !== 'pro' && surveys.length >= LOAD_SURVEY_LIMIT} className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${userPlan !== 'pro' && surveys.length >= LOAD_SURVEY_LIMIT ? 'text-slate-300 cursor-not-allowed' : 'text-red-400 hover:text-red-600'}`}>Remover</button>
                           </td>
                         </tr>
                       ))
