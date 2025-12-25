@@ -1013,7 +1013,7 @@ const FloorPlan = () => {
                         text={comp.properties?.power || '100'} 
                         fontSize={10} fontStyle="bold" fill="#0f172a" 
                         align="center" verticalAlign="middle" 
-                        offsetX={20} offsetY={5} width={40}
+                        offsetX={30} offsetY={5} width={60}
                     />
 
                     {/* Circuito (Inferior Esquerdo) */}
@@ -1298,7 +1298,7 @@ const FloorPlan = () => {
     <div className="flex h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-100 relative" style={{ touchAction: 'none' }}>
       
       {/* Barra de Ferramentas Esquerda (Compacta) */}
-      <div className="absolute left-2 top-4 z-10 flex flex-col gap-1 bg-white p-1 rounded-lg shadow-lg border border-slate-200">
+      <div className="absolute left-2 top-4 z-10 flex flex-col gap-1 bg-white p-1 rounded-lg shadow-lg border border-slate-200 max-h-[calc(100vh-2rem)] overflow-y-auto">
         {/* Zoom Controls */}
         <ToolButton 
             active={false} 
