@@ -82,6 +82,7 @@ const FloorPlan = () => {
 
   // Estado temporário para desenho em construção
   const [newWall, setNewWall] = useState(null) // Wall sendo desenhada atualmente
+  const [newRoom, setNewRoom] = useState(null) // Room sendo desenhada atualmente {x1, y1, x2, y2}
   const [newDimension, setNewDimension] = useState(null) // Cota sendo desenhada
   const [calibrationPoints, setCalibrationPoints] = useState([]) // Pontos para calibração [p1, p2]
   const [wiringStartId, setWiringStartId] = useState(null) // ID do componente onde o fio começou
@@ -367,6 +368,19 @@ const FloorPlan = () => {
                 x1: x, y1: y, x2: x, y2: y
             })
         }
+    } else if (tool === 'room') {
+        const stage = e.target.getStage()
+        const relativePos = stage.getRelativePointerPosition()
+        
+        if (relativePos) {
+            const x = relativePos.x
+            const y = relativePos.y
+            
+            isDrawing.current = true
+            setNewRoom({
+                x1: x, y1: y, x2: x, y2: y
+            })
+        }
     } else if (tool === 'calibrate') {
         // Calibration Logic: Click 2 points
         const stage = e.target.getStage()
@@ -478,6 +492,14 @@ const FloorPlan = () => {
                 angleText: snappedAngle !== null ? `${snappedAngle}°` : null
             }))
         }
+    } else if (tool === 'room' && isDrawing.current && newRoom) {
+         e.evt.preventDefault()
+         const stage = e.target.getStage()
+         const relativePos = stage.getRelativePointerPosition()
+         
+         if (relativePos) {
+             setNewRoom(prev => ({ ...prev, x2: relativePos.x, y2: relativePos.y }))
+         }
     }
   }
 
@@ -489,6 +511,36 @@ const FloorPlan = () => {
                 setWalls(prev => [...prev, { ...newWall, id: Date.now(), width: 6 }])
             }
             setNewWall(null)
+        }
+        if (tool === 'room' && newRoom) {
+             const { x1, y1, x2, y2 } = newRoom
+             const w = Math.abs(x2 - x1)
+             const h = Math.abs(y2 - y1)
+             
+             // Min dimensions check (e.g., 0.5m ~ 20px)
+             if (w > 10 && h > 10) {
+                 const idBase = Date.now()
+                 
+                 // Normalize coords ensuring top-left to bottom-right order isn't required for Wall logic, 
+                 // but good for consistency.
+                 const left = Math.min(x1, x2)
+                 const right = Math.max(x1, x2)
+                 const top = Math.min(y1, y2)
+                 const bottom = Math.max(y1, y2)
+
+                 const wallsToAdd = [
+                     // Top
+                     { id: idBase, x1: left, y1: top, x2: right, y2: top, width: 6 },
+                     // Right
+                     { id: idBase+1, x1: right, y1: top, x2: right, y2: bottom, width: 6 },
+                     // Bottom
+                     { id: idBase+2, x1: right, y1: bottom, x2: left, y2: bottom, width: 6 },
+                     // Left
+                     { id: idBase+3, x1: left, y1: bottom, x2: left, y2: top, width: 6 }
+                 ]
+                 setWalls(prev => [...prev, ...wallsToAdd])
+             }
+             setNewRoom(null)
         }
     }
   }
@@ -1238,6 +1290,12 @@ const FloorPlan = () => {
             tooltip="Parede (W)" 
         />
         <ToolButton 
+            active={tool === 'room'} 
+            onClick={() => setTool('room')} 
+            icon={Square} 
+            tooltip="Cômodo (R)" 
+        />
+        <ToolButton 
             active={tool === 'wire'} 
             onClick={() => setTool('wire')} 
             icon={Cable} 
@@ -1544,8 +1602,6 @@ const FloorPlan = () => {
                 })()}
 
                 {/* Parede Temporária (Ghost) */}
-
-                {/* Parede Temporária (Ghost) */}
                 {newWall && (
                     <Group>
                         <Line
@@ -1589,6 +1645,33 @@ const FloorPlan = () => {
                              <Line points={[0, -40, 0, 40]} stroke="#ef4444" strokeWidth={1} dash={[4, 4]} />
                              <Circle radius={3} stroke="#ef4444" strokeWidth={1} />
                         </Group>
+                    </Group>
+                )}
+
+                {/* Ghost Room */}
+                {newRoom && (
+                    <Group>
+                        <Rect
+                            x={Math.min(newRoom.x1, newRoom.x2)}
+                            y={Math.min(newRoom.y1, newRoom.y2)}
+                            width={Math.abs(newRoom.x2 - newRoom.x1)}
+                            height={Math.abs(newRoom.y2 - newRoom.y1)}
+                            stroke="#6366f1"
+                            strokeWidth={2}
+                            dash={[10, 5]}
+                            fill="rgba(99, 102, 241, 0.1)"
+                        />
+                        <Text 
+                            x={(newRoom.x1 + newRoom.x2) / 2} 
+                            y={(newRoom.y1 + newRoom.y2) / 2} 
+                            text={`${(Math.abs(newRoom.x2 - newRoom.x1) / GRID_SIZE).toFixed(2)}m x ${(Math.abs(newRoom.y2 - newRoom.y1) / GRID_SIZE).toFixed(2)}m`}
+                            fontSize={12} 
+                            fontStyle="bold"
+                            fill="#4338ca" 
+                            align="center"
+                            offsetX={40}
+                            offsetY={10}
+                        />
                     </Group>
                 )}
 
