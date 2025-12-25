@@ -86,7 +86,7 @@ const Login = () => {
           password,
           options: { 
             data: { plan: 'free' },
-            emailRedirectTo: window.location.origin 
+            emailRedirectTo: `${window.location.origin}/login`
           }
         })
         if (error) throw error
