@@ -3,7 +3,7 @@ import { Check, X, Star, Zap, Shield, TrendingUp, Clock, FileCheck, ArrowLeft } 
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-const Plans = () => {
+const Plans = ({ isInternal = false }) => {
   const [userEmail, setUserEmail] = useState('')
 
   useEffect(() => {
@@ -19,9 +19,10 @@ const Plans = () => {
   }
 
   return (
-    <div className="bg-white min-h-screen font-sans text-slate-900 selection:bg-indigo-50 selection:text-indigo-700">
+    <div className={`bg-white min-h-screen font-sans text-slate-900 selection:bg-indigo-50 selection:text-indigo-700 ${isInternal ? '' : ''}`}>
       
-      {/* Custom Header for Plans Page - Restricted elements as requested */}
+      {/* Custom Header for Plans Page - Only show if NOT internal */}
+      {!isInternal && (
       <header className="bg-white border-b border-slate-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5 group">
@@ -41,15 +42,18 @@ const Plans = () => {
             </div>
         </div>
       </header>
+      )}
 
       <main className="max-w-5xl mx-auto px-6 space-y-16 pb-20">
         
         {/* Hero Section */}
         <div className="text-center space-y-6 pt-16 flex flex-col items-center">
+          {!isInternal && (
           <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors mb-2 group">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span className="text-xs font-bold uppercase tracking-wider">Voltar</span>
           </Link>
+          )}
           
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-widest">
              <Star className="w-3 h-3" />

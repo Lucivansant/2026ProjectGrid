@@ -42,6 +42,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
 
             <Route path="/financial" element={<Financial />} />
+            <Route path="/dashboard/plans" element={<Plans isInternal={true} />} />
           </Route>
           </Route>
 
