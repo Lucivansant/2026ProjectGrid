@@ -159,7 +159,7 @@ const AppLayout = () => {
         </header>
 
         {/* Área de Visualização (Viewport) */}
-        <main className="flex-1 p-6 lg:p-10 bg-white">
+        <main className={`flex-1 bg-white ${location.pathname === '/floor-plan' ? 'p-0' : 'p-6 lg:p-10'}`}>
            <Outlet />
         </main>
       </div>

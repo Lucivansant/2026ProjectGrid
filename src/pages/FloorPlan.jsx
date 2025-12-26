@@ -27,11 +27,16 @@ import {
   FlipHorizontal,
   Ruler,
   Copy,
-  ClipboardPaste
+  ClipboardPaste,
+  FileText,
+  X,
+  ArrowRight,
+  Scissors
 } from 'lucide-react'
 
 // Constantes
 const GRID_SIZE = 40 // pixels por célula (ex: 40px = 1 metro na escala padrão)
+const WALL_WIDTH = 4 // Espessura da parede em pixels
 const SNAP_THRESHOLD = 10
 
 /**
@@ -77,6 +82,7 @@ const FloorPlan = () => {
   const [wires, setWires] = useState([]) // Array de cabos {id, startCompId, endCompId}
   const [dimensionsList, setDimensionsList] = useState([]) // Lista de Cotas {id, x1, y1, x2, y2}
   const [labels, setLabels] = useState([]) // Lista de Textos {id, x, y, text, fontSize}
+  const [arrows, setArrows] = useState([]) // Lista de Setas {id, points: [x1, y1, x2, y2], color}
   const [selectedId, setSelectedId] = useState(null) // ID do objeto selecionado
   
   // Estado para formulário de propriedades
@@ -86,12 +92,14 @@ const FloorPlan = () => {
   const [newWall, setNewWall] = useState(null) // Wall sendo desenhada atualmente
   const [newRoom, setNewRoom] = useState(null) // Room sendo desenhada atualmente {x1, y1, x2, y2}
   const [newDimension, setNewDimension] = useState(null) // Cota sendo desenhada
+  const [newArrow, setNewArrow] = useState(null) // Seta sendo desenhada
   const [calibrationPoints, setCalibrationPoints] = useState([]) // Pontos para calibração [p1, p2]
   const [wiringStartId, setWiringStartId] = useState(null) // ID do componente onde o fio começou
   const [transformText, setTransformText] = useState('') // Texto de transformação (ex: ângulo)
   const [clipboard, setClipboard] = useState(null) // Para Copy/Paste
   const [dragFeedback, setDragFeedback] = useState([]) // Feedback visual de drag {x, y, text}
   const [snapIndicator, setSnapIndicator] = useState(null) // {x, y} para mostrar a cruz ao snappar
+  const [showLoadSchedule, setShowLoadSchedule] = useState(false) // Quadro de Cargas
 
   // Refs
   const stageRef = useRef(null)
@@ -166,6 +174,7 @@ const FloorPlan = () => {
             if (data.wires) setWires(data.wires)
             if (data.dimensionsList) setDimensionsList(data.dimensionsList)
             if (data.labels) setLabels(data.labels)
+            if (data.arrows) setArrows(data.arrows)
         } catch (e) {
             console.error('Erro ao carregar projeto:', e)
         }
@@ -258,6 +267,23 @@ const FloorPlan = () => {
         if (e.ctrlKey && e.key === 'v') {
             handlePaste()
         }
+
+        // ESC Cancel / Switch to Select
+        if (e.key === 'Escape') {
+            if (isDrawing.current) {
+                // Cancel current drawing
+                isDrawing.current = false
+                setNewWall(null)
+                setNewRoom(null)
+                setNewDimension(null)
+                setNewArrow(null)
+                setWiringStartId(null)
+            } else {
+               // Switch to Select tool
+               setTool('select')
+               setSelectedId(null)
+            }
+        }
     }
 
     window.addEventListener('keydown', handleKeyDown)
@@ -266,7 +292,7 @@ const FloorPlan = () => {
 
 
   const saveProject = () => {
-    const data = { walls, components, wires, dimensionsList, labels }
+    const data = { walls, components, wires, dimensionsList, labels, arrows }
     localStorage.setItem('projectgrid_floorplan', JSON.stringify(data))
     // Opcional: Feedback visual de salvamento?
   }
@@ -433,6 +459,15 @@ const FloorPlan = () => {
                  }, 100)
              }
         }
+    } else if (tool === 'arrow') {
+        const stage = e.target.getStage()
+        const relativePos = stage.getRelativePointerPosition()
+        if (relativePos) {
+              const x = relativePos.x
+              const y = relativePos.y
+              isDrawing.current = true
+              setNewArrow({ x1: x, y1: y, x2: x, y2: y })
+        }
     } else if (tool === 'text') {
         const stage = e.target.getStage()
         const relativePos = stage.getRelativePointerPosition()
@@ -541,6 +576,16 @@ const FloorPlan = () => {
 
              setNewRoom(prev => ({ ...prev, x2: x, y2: y }))
          }
+    } else if (tool === 'arrow' && isDrawing.current && newArrow) {
+         const stage = e.target.getStage()
+         const relativePos = stage.getRelativePointerPosition()
+         if (relativePos) {
+              setNewArrow(prev => ({
+                  ...prev,
+                  x2: relativePos.x,
+                  y2: relativePos.y
+              }))
+         }
     }
   }
 
@@ -550,7 +595,7 @@ const FloorPlan = () => {
         isDrawing.current = false
         if (tool === 'wall' && newWall) {
             if (newWall.x1 !== newWall.x2 || newWall.y1 !== newWall.y2) {
-                setWalls(prev => [...prev, { ...newWall, id: Date.now(), width: 6 }])
+                setWalls(prev => [...prev, { ...newWall, id: Date.now(), width: WALL_WIDTH }])
             }
             setNewWall(null)
         }
@@ -572,17 +617,23 @@ const FloorPlan = () => {
 
                  const wallsToAdd = [
                      // Top
-                     { id: idBase, x1: left, y1: top, x2: right, y2: top, width: 6 },
+                     { id: idBase, x1: left, y1: top, x2: right, y2: top, width: WALL_WIDTH },
                      // Right
-                     { id: idBase+1, x1: right, y1: top, x2: right, y2: bottom, width: 6 },
+                     { id: idBase+1, x1: right, y1: top, x2: right, y2: bottom, width: WALL_WIDTH },
                      // Bottom
-                     { id: idBase+2, x1: right, y1: bottom, x2: left, y2: bottom, width: 6 },
+                     { id: idBase+2, x1: right, y1: bottom, x2: left, y2: bottom, width: WALL_WIDTH },
                      // Left
-                     { id: idBase+3, x1: left, y1: bottom, x2: left, y2: top, width: 6 }
+                     { id: idBase+3, x1: left, y1: bottom, x2: left, y2: top, width: WALL_WIDTH }
                  ]
                  setWalls(prev => [...prev, ...wallsToAdd])
              }
              setNewRoom(null)
+        }
+        if (tool === 'arrow' && newArrow) {
+             if (newArrow.x1 !== newArrow.x2 || newArrow.y1 !== newArrow.y2) {
+                  setArrows(prev => [...prev, { ...newArrow, id: Date.now() }])
+             }
+             setNewArrow(null)
         }
     }
   }
@@ -737,6 +788,8 @@ const FloorPlan = () => {
         setDimensionsList(prev => prev.filter(d => d.id !== selectedId))
     } else if (selectedId.toString().startsWith('text-')) {
         setLabels(prev => prev.filter(l => l.id !== selectedId))
+    } else if (arrows.some(a => a.id === selectedId)) {
+        setArrows(prev => prev.filter(a => a.id !== selectedId))
     } else {
         // Assume que é parede (ids numéricos)
         // Nota: IDs de parede são timestamps (números), ids de comp são strings
@@ -763,7 +816,8 @@ const FloorPlan = () => {
 
   // --- Renderização de Símbolos ---
   const renderComponentShape = (comp) => {
-    let shape = null
+    try {
+        let shape = null
     const color = '#f59e0b' // Amber/Gold padrão para elétrico
 
     const props = comp.properties || {}
@@ -1087,44 +1141,84 @@ const FloorPlan = () => {
                 </Group>
             )
             break       
-        case 'wireTag': {
-             // Renderização de Etiqueta Simples (Sem Seta)
-             const props = comp.properties || {}
-             const isSelected = selectedId === comp.id
 
-             // Helper de Símbolos
+        case 'shaft':
+            // Shaft / Corte na Parede
+            // Retângulo Branco (Máscara) + Linhas Vermelhas nas pontas
+            const shaftWidth = props.width || 30 // Largura do corte (cm)
+            const wPx = shaftWidth // 1px = 1cm na escala atual do componente (ou ajuste conforme necessário)
+            // Nota: Componentes como Janela usam 48px para 1.20m? (48 * 2.5 = 120). Escala do projeto é 40px=1m?
+            // Ajustar escala visual se necessário. No floorplan, 1m = 40px (GRID_SIZE).
+            // Se width=30cm -> 12px.
+            
+            // Vamos usar props.width como pixels por enquanto ou converter?
+            // Janela: width={48} (1.2m). 48px.
+            // Então 1px = 2.5cm.
+            // Se shaftWidth (cm) = 30. Pixels = 30 / 2.5 = 12.
+            
+            // Mas talvez seja mais fácil usar coordenadas diretas.
+            // Vamos assumir um padrão visual fixo ou editável.
+            // Default 30cm (12px) de largura, e altura da parede (aprox 10-15px).
+            
+            shape = (
+                <Group>
+                    {/* Máscara Branca (Maior que a parede para cobrir bem) */}
+                    <Rect 
+                        width={props.pixelWidth || 20} 
+                        height={16} 
+                        x={-(props.pixelWidth || 20)/2} 
+                        y={-8} 
+                        fill="white" 
+                        stroke="transparent"
+                    />
+                    
+                    {/* Linhas de Limite (Vermelho) */}
+                    <Line 
+                        points={[-(props.pixelWidth || 20)/2, -8, -(props.pixelWidth || 20)/2, 8]} 
+                        stroke="#ef4444" 
+                        strokeWidth={2} 
+                    />
+                    <Line 
+                        points={[(props.pixelWidth || 20)/2, -8, (props.pixelWidth || 20)/2, 8]} 
+                        stroke="#ef4444" 
+                        strokeWidth={2} 
+                    />
+                    
+                    {/* Label opcional 'SHAFT' ou vazio */}
+                </Group>
+            )
+            break
+
+        case 'wireTag': {
+             // Tag de fio com Leader Line (Haste dobrável)
+             const props = comp.properties || {}
+             // x,y = Ponta da seta (no eletroduto)
+             // props.tagOffset = Posição do corpo da tag relativa à ponta
+             // props.tagOffset = Posição do corpo da tag relativa à ponta
+             
+             const tagOffset = comp.properties?.tagOffset || { x: 30, y: -30 }
+             const type = String(props.conductors || 'FNT') // Safety string cast
+             
+             // Calcula ângulo da seta (aponta para o anchor 0,0 vindo do offset)
+             // Vector: Anchor(0,0) - Offset(dx, dy) = (-dx, -dy)
+             const angleRad = Math.atan2(-tagOffset.y, -tagOffset.x)
+             const angleDeg = angleRad * 180 / Math.PI
+
              const renderMarks = () => {
-                const type = String(props.conductors || 'FNT')
                 const marks = [] 
                 const spacing = 6
                 const list = type.split('')
                 
                 const totalWidth = Math.max(20, (list.length) * spacing) // Largura mínima
-                const startX = -totalWidth / 2
+                const startX = 0 // Agora relativo ao offset
 
-                // Linha de Base (Fio) + Seta
-                // O fio passa por trás dos marcas
+                // Linha de Base (Tag Horizontal) começa no offset
                 marks.push(
-                    <Group key="base-wire">
-                        {/* Linha do fio */}
-                        <Line points={[startX - 5, 0, startX + totalWidth + 10, 0]} stroke="#94a3b8" strokeWidth={1} />
-                        {/* Seta na ponta direita */}
-                        <RegularPolygon 
-                            sides={3} 
-                            radius={4} 
-                            x={startX + totalWidth + 10} 
-                            y={0} 
-                            rotation={90} 
-                            fill="#94a3b8" 
-                        />
-                    </Group>
+                    <Line key="base-wire" points={[startX, 0, startX + totalWidth + 10, 0]} stroke="#94a3b8" strokeWidth={1} />
                 )
 
                 list.forEach((char, i) => {
-                    const lx = startX + (i * spacing) + (spacing/2)
-                    // Cores fixas solicitadas (se selecionado, talvez manter highlight? 
-                    // Melhor manter as cores reais sempre, e usar o highlight no container ou box)
-                    // O usuario pediu cores especificas.
+                    const lx = startX + (i * spacing) + (spacing/2) + 5 // +5 padding
                     
                     if (char === 'F') { // Fase = Vermelho
                         marks.push(<Line key={`f-${i}`} points={[lx, -8, lx, 8]} stroke="#ef4444" strokeWidth={2} />)
@@ -1154,33 +1248,82 @@ const FloorPlan = () => {
 
              shape = (
                  <Group>
-                     {/* Corpo da Tag */}
-                     <Group> 
-                        <Rect x={-20} y={-10} width={40} height={20} fill="transparent" /> 
+                     {/* 1. Seta na Ponta (0,0) - Apontando para o anchor */}
+                     <RegularPolygon 
+                        sides={3} 
+                        radius={4} 
+                        x={0} 
+                        y={0} 
+                        rotation={angleDeg + 90} // Ajuste para apontar corretamente
+                        fill="#64748b" 
+                     />
+                     
+                     {/* 2. Leader Line (Do anchor até o offset) */}
+                     <Line 
+                        points={[0, 0, tagOffset.x, tagOffset.y]} 
+                        stroke="#94a3b8" 
+                        strokeWidth={1} 
+                     />
+
+                     {/* 3. Corpo da Tag (No offset) */}
+                     <Group x={tagOffset.x} y={tagOffset.y}> 
+                        <Rect x={-5} y={-15} width={60} height={30} fill="transparent" />
                         {renderMarks()}
-                        <Text 
-                            y={-25}
-                            x={0}
-                            text={`#${props.gauge || '?'}`}
-                            fontSize={10}
-                            fill="#64748b"
-                            align="center"
-                            width={60}
-                            offsetX={30}
-                        />
-                         {/* Número do Circuito (Ex: 1) */}
-                         <Text 
-                            y={15}
-                            x={0}
-                            text={props.circuit ? `${props.circuit}` : ''}
-                            fontSize={10}
-                            fontStyle="bold"
-                            fill="#ef4444"
-                            align="center"
-                            width={60}
-                            offsetX={30}
-                        />
+                        
+                        {/* Texto Combinado */}
+                        {props.circuit ? (
+                            <Group>
+                                <Text 
+                                    y={-25} x={0}
+                                    text={`${props.circuit}`}
+                                    fontSize={10} fontStyle="bold" fill="#ef4444" 
+                                    align="right" width={30} offsetX={30}
+                                />
+                                <Text 
+                                    y={-25} x={4}
+                                    text={`#${props.gauge || '?'}`}
+                                    fontSize={10} fill="#64748b" 
+                                    align="left" width={70} offsetX={0}
+                                />
+                            </Group>
+                        ) : (
+                            <Text 
+                                y={-25} x={0}
+                                text={`#${props.gauge || '?'}`}
+                                fontSize={10} fill="#64748b" 
+                                align="center" width={70} offsetX={35}
+                            />
+                        )}
                      </Group>
+
+                     {/* 4. Handle de Controle da Tag (Só se selecionado) */}
+                     {selectedId === comp.id && tool === 'select' && (
+                         <Circle
+                            x={tagOffset.x}
+                            y={tagOffset.y}
+                            radius={6}
+                            fill="#f59e0b"
+                            stroke="white"
+                            strokeWidth={1}
+                             draggable
+                            onDragMove={(e) => {
+                                // Evita propagação para o grupo pai
+                                e.cancelBubble = true
+                            }}
+                            onDragEnd={(e) => {
+                                e.cancelBubble = true
+                                const node = e.target
+                                // Posição relativa ao grupo pai
+                                const newX = node.x()
+                                const newY = node.y()
+                                
+                                setComponents(prev => prev.map(c => 
+                                    c.id === comp.id ? { ...c, properties: { ...c.properties, tagOffset: { x: newX, y: newY } } } : c
+                                ))
+                                node.position({ x: newX, y: newY })
+                            }}
+                         />
+                     )}
                  </Group>
              )
              break;
@@ -1289,6 +1432,133 @@ const FloorPlan = () => {
             )}
         </Group>
     )
+    } catch (error) {
+        console.error("Erro renderizando componente:", comp, error)
+        return null
+    }
+  }
+
+  // --- Função para Calcular Quadro de Cargas (NBR 5410) ---
+  const calculateLoadSchedule = () => {
+      const schedule = {}
+      
+      // Tabela de Capacidade de Corrente (Ampacidade) - NBR 5410
+      // Método de Instalação B1 (Eletroduto embutido em alvenaria), condutores de cobre, isolação PVC 70°C
+      // 2 condutores carregados (F+N ou F+F)
+      const ampacityTable = [
+          { section: 1.5, iz: 17.5 },
+          { section: 2.5, iz: 24.0 },
+          { section: 4.0, iz: 32.0 },
+          { section: 6.0, iz: 41.0 },
+          { section: 10.0, iz: 57.0 },
+          { section: 16.0, iz: 76.0 },
+          { section: 25.0, iz: 101.0 }
+      ]
+
+      // Disjuntores Padrão (DIN)
+      const standardBreakers = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100]
+
+      components.forEach(comp => {
+          if (comp.type !== 'lamp' && comp.type !== 'outlet') return
+
+          const circuit = comp.properties?.circuit || '?'
+          if (!schedule[circuit]) {
+              schedule[circuit] = {
+                  id: circuit,
+                  description: new Set(),
+                  voltage: 220, // Tensão (V)
+                  totalVA: 0,
+                  totalW: 0,
+                  scheme: 'F+N+T',
+                  factor: 1.0,
+                  fca: 0.70, // Fator de Correção de Agrupamento (FCA) - Ex: 3 circuitos no eletroduto
+                  minSection: 0
+              }
+          }
+
+          // Potência
+          const power = parseInt(comp.properties?.power || (comp.type === 'lamp' ? 100 : 127))
+          
+          let factor = 1.0
+          if (comp.type === 'lamp') {
+              schedule[circuit].description.add('Iluminação')
+              schedule[circuit].scheme = 'F+N' // Ilum é F+N+T mas simplificado F+N no diagrama unifilar as vezes
+              schedule[circuit].minSection = Math.max(schedule[circuit].minSection, 1.5) // NBR 5410: Min 1.5 para iluminação
+          } else if (comp.type === 'outlet') {
+               schedule[circuit].description.add('Tomadas')
+               factor = 0.8 // Fator de Potência típico para TUGs
+               schedule[circuit].scheme = 'F+N+T'
+               schedule[circuit].minSection = Math.max(schedule[circuit].minSection, 2.5) // NBR 5410: Min 2.5 para força
+          }
+
+          schedule[circuit].totalVA += power
+          schedule[circuit].totalW += (power * factor)
+          schedule[circuit].factor = factor 
+      })
+
+      return Object.values(schedule).sort((a,b) => {
+          if(a.id === '?') return 1;
+          if(b.id === '?') return -1;
+          return parseInt(a.id) - parseInt(b.id);
+      }).map(row => {
+          // 1. Corrente de Projeto (Ib)
+          const Ib = row.totalVA / row.voltage
+
+          const isOutletCircuit = Array.from(row.description).some(d => d.includes('Tomadas'))
+          const minBreakerIn = isOutletCircuit ? 16 : 10
+
+          // 2. Determinar Cabo (Seção)
+          // Critério A: Iz' = Iz * FCA >= Ib (Suportar a Carga)
+          // Critério B: Iz' = Iz * FCA >= minBreakerIn (Suportar o Disjuntor Mínimo)
+          // Logo: Iz >= max(Ib, minBreakerIn) / FCA
+          
+          const requiredIzVal = Math.max(Ib, minBreakerIn)
+          const requiredIzRaw = requiredIzVal / row.fca
+          
+          let selectedCable = ampacityTable.find(c => c.iz >= requiredIzRaw && c.section >= row.minSection)
+          
+          // Se não encontrou (carga muito alta), pega o maior
+          if (!selectedCable) selectedCable = ampacityTable[ampacityTable.length - 1]
+
+          const Iz = selectedCable.iz
+          const Iz_corrected = Iz * row.fca
+          const section = selectedCable.section
+
+          // 3. Selecionar Disjuntor (In)
+          // Condição 1: In >= Ib
+          // Condição 2: In <= Iz_corrected (Proteção do cabo contra sobrecarga)
+          // Condição 3: In >= minBreakerIn (Restrição do Usuário)
+          
+          let breaker = standardBreakers.find(In => In >= Ib && In <= Iz_corrected && In >= minBreakerIn)
+          
+          let status = 'OK'
+          if (!breaker) {
+              // Tentativas de diagnóstico de erro
+              if (Ib > Iz_corrected) {
+                   status = 'ERRO: Carga > Cabo (Upsize Failure)'
+              } else if (minBreakerIn > Iz_corrected) {
+                   // Caso raro (se o cabo maximo nao aguentar 16A corrigido, mas cabo 25mm aguenta muito mais)
+                   status = 'ERRO: Cabo não suporta Disj Mín'
+              } else {
+                   // Carga ok, Cabo ok, mas sem disjuntor padrão no intervalo?
+                   // Ex: Ib=45, Iz'=48. Break=?? (40<45, 50>48). Sem breaker.
+                   status = 'ALERTA: Ajuste Fino Nec.'
+              }
+              
+              // Fallback visual
+              breaker = 0 
+          }
+
+          return {
+              ...row,
+              description: Array.from(row.description).join(' e '),
+              Ib: Ib.toFixed(2), // Corrente calculada
+              totalW: Math.round(row.totalW), // Arredondar W
+              breaker: breaker,
+              diam: section,
+              status: status
+          }
+      })
   }
 
 
@@ -1297,8 +1567,8 @@ const FloorPlan = () => {
   return (
     <div className="flex h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-100 relative" style={{ touchAction: 'none' }}>
       
-      {/* Barra de Ferramentas Esquerda (Compacta) */}
-      <div className="absolute left-2 top-4 z-10 flex flex-col gap-1 bg-white p-1 rounded-lg shadow-lg border border-slate-200 max-h-[calc(100vh-2rem)] overflow-y-auto">
+      {/* Barra de Ferramentas Superior (Horizontal) */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-4 z-10 flex flex-row gap-1 bg-white p-1 rounded-lg shadow-lg border border-slate-200 max-w-[calc(100vw-2rem)] overflow-x-auto items-center">
         {/* Zoom Controls */}
         <ToolButton 
             active={false} 
@@ -1312,7 +1582,7 @@ const FloorPlan = () => {
             icon={ZoomOut} 
             tooltip="Zoom Out (-)" 
         />
-        <div className="h-px bg-slate-200 my-1"></div>
+        <div className="w-px bg-slate-200 mx-1 self-stretch"></div>
         <ToolButton 
             active={tool === 'select'} 
             onClick={() => setTool('select')} 
@@ -1324,6 +1594,12 @@ const FloorPlan = () => {
             onClick={() => setTool('text')} 
             icon={Type} 
             tooltip="Texto (T)" 
+        />
+        <ToolButton 
+            active={tool === 'arrow'} 
+            onClick={() => setTool('arrow')} 
+            icon={ArrowRight} 
+            tooltip="Seta" 
         />
         <ToolButton 
             active={tool === 'wall'} 
@@ -1349,7 +1625,7 @@ const FloorPlan = () => {
             icon={Tag} 
             tooltip="Adicionar Etiqueta de Fio" 
         />
-        <div className="h-px bg-slate-200 my-1"></div>
+        <div className="w-px bg-slate-200 mx-1 self-stretch"></div>
         <ToolButton 
             active={false} 
             onClick={() => addComponent('outlet')} 
@@ -1374,7 +1650,7 @@ const FloorPlan = () => {
             icon={Box} 
             tooltip="Adicionar QGBT" 
         />
-        <div className="h-px bg-slate-200 my-1"></div>
+        <div className="w-px bg-slate-200 mx-1 self-stretch"></div>
         <ToolButton 
             active={false} 
             onClick={() => addComponent('door')} 
@@ -1387,8 +1663,22 @@ const FloorPlan = () => {
             icon={GalleryVerticalEnd} 
             tooltip="Adicionar Janela" 
         />
+         <ToolButton 
+            active={false} 
+            onClick={() => addComponent('shaft')} 
+            icon={Scissors} 
+            tooltip="Adicionar Shaft / Corte" 
+        />
 
-        <div className="h-px bg-slate-200 my-1"></div>
+        <div className="w-px bg-slate-200 mx-1 self-stretch"></div>
+        <ToolButton 
+            active={showLoadSchedule} 
+            onClick={() => setShowLoadSchedule(!showLoadSchedule)} 
+            icon={FileText} 
+            tooltip="Quadro de Cargas" 
+        />
+
+        <div className="w-px bg-slate-200 mx-1 self-stretch"></div>
         <ToolButton 
             active={tool === 'calibrate'} 
             onClick={() => {
@@ -1421,7 +1711,7 @@ const FloorPlan = () => {
             tooltip="Limpar Tudo" 
             className="text-red-700 hover:text-red-800 hover:bg-red-100"
         />
-        <div className="h-px bg-slate-200 my-1"></div>
+        <div className="w-px bg-slate-200 mx-1 self-stretch"></div>
         <ToolButton 
             active={false} 
             onClick={handleCopy} 
@@ -1438,7 +1728,7 @@ const FloorPlan = () => {
             disabled={!clipboard}
             className={!clipboard ? "opacity-50 cursor-not-allowed" : ""}
         />
-        <div className="h-px bg-slate-200 my-1"></div>
+        <div className="w-px bg-slate-200 mx-1 self-stretch"></div>
         <ToolButton 
             active={false} 
             onClick={handleExport} 
@@ -1472,12 +1762,12 @@ const FloorPlan = () => {
                     <Group key={`j-${wall.id}`}>
                         <Circle 
                             x={wall.x1} y={wall.y1} 
-                            radius={(wall.width || 6) / 2} 
+                            radius={(wall.width || WALL_WIDTH) / 2} 
                             fill={selectedId === wall.id.toString() ? "#4f46e5" : "#334155"} 
                         />
                         <Circle 
                             x={wall.x2} y={wall.y2} 
-                            radius={(wall.width || 6) / 2} 
+                            radius={(wall.width || WALL_WIDTH) / 2} 
                             fill={selectedId === wall.id.toString() ? "#4f46e5" : "#334155"} 
                         />
                     </Group>
@@ -1635,7 +1925,7 @@ const FloorPlan = () => {
                                 id={wall.id.toString()}
                                 points={[wall.x1, wall.y1, wall.x2, wall.y2]}
                                 stroke={selectedId === wall.id.toString() ? "#4f46e5" : "#334155"}
-                                strokeWidth={wall.width || 6}
+                                strokeWidth={wall.width || WALL_WIDTH}
                                 lineCap="square"
                                 onClick={() => {
                                     if (tool === 'select') setSelectedId(wall.id.toString())
@@ -2066,6 +2356,45 @@ const FloorPlan = () => {
                     />
                 ))}
 
+                {/* Setas */}
+                {arrows.map((arrow) => (
+                    <Arrow
+                        key={arrow.id}
+                        points={[arrow.x1, arrow.y1, arrow.x2, arrow.y2]}
+                        pointerLength={5}
+                        pointerWidth={5}
+                        fill={selectedId === arrow.id ? "#ef4444" : "#475569"}
+                        stroke={selectedId === arrow.id ? "#ef4444" : "#475569"}
+                        strokeWidth={1.5}
+                        hitStrokeWidth={10} // Easier to select even if thin
+                        draggable={tool === 'select'}
+                        onClick={() => tool === 'select' && setSelectedId(arrow.id)}
+                        onTap={() => tool === 'select' && setSelectedId(arrow.id)}
+                        onDragEnd={(e) => {
+                            const node = e.target
+                            const dx = node.x()
+                            const dy = node.y()
+                            setArrows(prev => prev.map(a => 
+                                a.id === arrow.id 
+                                ? { ...a, x1: a.x1 + dx, y1: a.y1 + dy, x2: a.x2 + dx, y2: a.y2 + dy }
+                                : a
+                            ))
+                            node.position({ x: 0, y: 0 })
+                        }}
+                    />
+                ))}
+                 {newArrow && (
+                    <Arrow
+                        points={[newArrow.x1, newArrow.y1, newArrow.x2, newArrow.y2]}
+                        pointerLength={5}
+                        pointerWidth={5}
+                        fill="#6366f1"
+                        stroke="#6366f1"
+                        strokeWidth={1.5}
+                        opacity={0.6}
+                    />
+                )}
+
                 {/* New Dimension Preview */}
                 {newDimension && (() => {
                     const cx = (newDimension.x1 + newDimension.x2) / 2
@@ -2119,16 +2448,19 @@ const FloorPlan = () => {
              const comp = components.find(c => c.id === selectedId)
              // Only for specific types
              if (comp && ['outlet', 'lamp', 'switch', 'wireTag'].includes(comp.type)) {
-                 // Calculate screen position
-                 const screenX = comp.x * stageScale + stagePos.x
-                 const screenY = comp.y * stageScale + stagePos.y
+                 // Calculate screen position with offset support
+                 const offsetX = (comp.type === 'wireTag' ? (comp.properties?.tagOffset?.x || 30) : 0)
+                 const offsetY = (comp.type === 'wireTag' ? (comp.properties?.tagOffset?.y || -30) : 0)
+                 
+                 const screenX = (comp.x + offsetX) * stageScale + stagePos.x
+                 const screenY = (comp.y + offsetY) * stageScale + stagePos.y
                  
                  return (
                      <div 
                         className="absolute bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-xl border border-indigo-100 flex flex-col gap-2 w-48 z-50 animate-in fade-in zoom-in-95 duration-200"
                         style={{
-                            left: screenX + 30, // Offset to right
-                            top: screenY - 50   // Offset to top
+                            left: screenX + 50, // More offset to right
+                            top: screenY - 80   // More offset to top
                         }}
                      >
                         <div className="flex items-center gap-2 mb-1 pb-1 border-b border-indigo-50">
@@ -2457,6 +2789,76 @@ const FloorPlan = () => {
            </div>
         </div>
        )}
+
+       {/* Load Schedule Modal */}
+        {showLoadSchedule && (
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-2xl border border-slate-300 z-50 p-4 max-h-[80vh] overflow-y-auto w-[90%] max-w-5xl">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-slate-800">Quadro de Cargas (QD1)</h2>
+                    <button onClick={() => setShowLoadSchedule(false)} className="text-slate-500 hover:text-red-500">
+                        <X size={24} />
+                    </button>
+                </div>
+                
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-slate-700 border-collapse border border-slate-300">
+                        <thead className="text-xs text-slate-700 uppercase bg-slate-100">
+                            <tr>
+                                <th className="px-3 py-2 border border-slate-300">Circuito</th>
+                                <th className="px-3 py-2 border border-slate-300">Descrição</th>
+                                <th className="px-3 py-2 border border-slate-300">Esquema</th>
+                                <th className="px-3 py-2 border border-slate-300">Tensão (V)</th>
+                                <th className="px-3 py-2 border border-slate-300">Pot. Total (VA)</th>
+                                <th className="px-3 py-2 border border-slate-300">Pot. Total (W)</th>
+                                <th className="px-3 py-2 border border-slate-300">FCT</th>
+                                <th className="px-3 py-2 border border-slate-300">FCA</th>
+                                <th className="px-3 py-2 border border-slate-300">In (A)</th>
+                                <th className="px-3 py-2 border border-slate-300">Seção (mm²)</th>
+                                <th className="px-3 py-2 border border-slate-300">Disj (A)</th>
+                                <th className="px-3 py-2 border border-slate-300">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {calculateLoadSchedule().map((row, i) => (
+                                <tr key={i} className="bg-white border-b hover:bg-slate-50">
+                                    <td className="px-3 py-2 border border-slate-300 font-bold text-center">{row.id}</td>
+                                    <td className="px-3 py-2 border border-slate-300">{row.description}</td>
+                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.scheme}</td>
+                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.voltage} V</td>
+                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.totalVA}</td>
+                                    <td className="px-3 py-2 border border-slate-300 text-center font-bold">{row.totalW}</td>
+                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.factor.toFixed(2)}</td>
+                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.fca.toFixed(2)}</td>
+                                    <td className="px-3 py-2 border border-slate-300 text-center text-slate-500">{row.Ib}</td>
+                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.diam}</td>
+                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.breaker}</td>
+                                    <td className={`px-3 py-2 border border-slate-300 text-center font-bold ${row.status.includes('ERRO') ? 'text-red-500' : 'text-green-600'}`}>{row.status}</td>
+                                </tr>
+                            ))}
+                            {calculateLoadSchedule().length === 0 && (
+                                <tr>
+                                    <td colSpan="12" className="px-6 py-4 text-center text-slate-500">
+                                        Nenhum circuito encontrado. Adicione componentes e defina os circuitos.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                        <tfoot className="font-bold bg-slate-100">
+                             <tr>
+                                <td colSpan="4" className="px-3 py-2 border border-slate-300 text-right">TOTAL</td>
+                                <td className="px-3 py-2 border border-slate-300 text-center">
+                                    {calculateLoadSchedule().reduce((acc, r) => acc + r.totalVA, 0)}
+                                </td>
+                                <td className="px-3 py-2 border border-slate-300 text-center">
+                                    {calculateLoadSchedule().reduce((acc, r) => acc + r.totalW, 0)}
+                                </td>
+                                <td colSpan="6" className="border border-slate-300"></td>
+                             </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        )}
 
     </div>
   )
