@@ -102,8 +102,8 @@ const Admin = () => {
     const { data: m } = await supabase.rpc('get_admin_dashboard_metrics')
     if (m) setMetrics(m)
 
-    // 2. Busca Métricas Detalhadas de Uso do Usuário
-    const { data: um } = await supabase.rpc('get_user_metrics')
+   // 2. Busca Métricas Detalhadas de Uso do Usuário
+    const { data: um } = await supabase.rpc('get_admin_users_full')
     if (um) setUserMetrics(um)
 
     // 3. Busca Todos os Feedbacks dos Usuários
@@ -176,7 +176,7 @@ const Admin = () => {
    
    setLoading(true)
    // Deleta tudo sem filtro (eq)
-   const { error } = await supabase.from('sales_logs').delete().neq('id', 0) // .neq('id', 0) é um hack comum no Supabase client para "deletar tudo" seguro, ou passar filtro vazio se permitido.
+   const { error } = await supabase.from('sales_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000')
    // Melhor abordagem: usar .delete().gt('id', 0) ou filtro que pegue tudo.
    // Mas como RLS policy é "using (true)", .delete().neq('id', -1) funciona.
 
@@ -398,6 +398,7 @@ const Admin = () => {
                      <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                            <th className="px-8 py-4">Usuário / Email</th>
+                           <th className="px-6 py-4 text-center">Senha (Temp)</th>
                            <th className="px-6 py-4 text-center">Inscritos</th>
                            <th className="px-6 py-4 text-center">Docs</th>
                         </tr>
@@ -407,16 +408,25 @@ const Admin = () => {
                            <tr key={i} className="hover:bg-slate-50 transition-colors group">
                               <td className="px-8 py-4">
                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-slate-900">{u.user_email}</span>
+                                    <span className="text-xs font-bold text-slate-900">{u.email || u.user_email}</span>
                                     {/* Botão de Excluir Usuário (Invisível até hover) */}
                                     <button 
-                                        onClick={() => deleteUser(u.user_id || u.id, u.user_email)}
+                                        onClick={() => deleteUser(u.user_id || u.id, u.email || u.user_email)}
                                         className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded transition-all"
                                         title="Excluir Usuário"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                  </div>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                 {u.temp_password ? (
+                                    <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-mono font-bold select-all cursor-pointer hover:bg-indigo-100 hover:text-indigo-700 transition-colors" title="Clique para copiar">
+                                        {u.temp_password}
+                                    </span>
+                                 ) : (
+                                    <span className="text-slate-300 text-[10px]">---</span>
+                                 )}
                               </td>
                               <td className="px-6 py-4 text-center font-mono text-xs font-bold text-indigo-600">
                                  {u.client_count}
@@ -448,7 +458,7 @@ const Admin = () => {
                      <Trash2 className="w-5 h-5" />
                   </button>
                </div>
-               <div className="p-0">
+               <div className="p-0 max-h-[500px] overflow-y-auto relative">
                   <table className="w-full text-left border-collapse">
                      <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
