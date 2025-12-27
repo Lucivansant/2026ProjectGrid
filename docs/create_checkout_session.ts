@@ -1,6 +1,8 @@
-// Setup for Supabase Edge Functions with Deno.serve (Native)
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import Stripe from 'https://esm.sh/stripe@12.0.0?target=deno'
+
+console.log("Function Loaded")
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,27 +10,38 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") || ""
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2022-11-15',
-  httpClient: Stripe.createFetchHttpClient(),
-})
-
 Deno.serve(async (req) => {
-  // 1. Handle CORS Preflight (OPTIONS request)
+  // 1. Always handle CORS first
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // 2. Initialize Supabase Client
+    // 2. Initialize inside handler to catch config errors
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY")
+    if (!stripeKey) {
+        throw new Error("STRIPE_SECRET_KEY is missing in Supabase Secrets")
+    }
+
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: '2022-11-15',
+      httpClient: Stripe.createFetchHttpClient(),
+    })
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')
+
+    if (!supabaseUrl || !supabaseKey) {
+        throw new Error("SUPABASE_URL or SUPABASE_ANON_KEY is missing")
+    }
+
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      supabaseUrl,
+      supabaseKey,
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // 3. Get User (Optional - Guest Checkout Logic)
+    // 3. Logic
     let user = null
     let email = null
     let stripeCustomerId = null
@@ -43,15 +56,12 @@ Deno.serve(async (req) => {
         }
     }
 
-    // 4. Ensure Stripe Customer Exists (Only if authenticated)
+    // 4. Ensure Stripe Customer
     if (user && !stripeCustomerId) {
-        // Search by email first to avoid duplicates
         const existingCustomers = await stripe.customers.list({ email: email, limit: 1 })
-        
         if (existingCustomers.data.length > 0) {
             stripeCustomerId = existingCustomers.data[0].id
         } else {
-            // Create new customer
             const newCustomer = await stripe.customers.create({
                 email: email,
                 name: user.user_metadata?.full_name || 'ProjectGrid User',
@@ -61,49 +71,35 @@ Deno.serve(async (req) => {
         }
     }
 
-    // 5. Parse Request Body
+    // 5. Create Session
     const { priceId, successUrl, cancelUrl } = await req.json()
 
     if (!priceId) throw new Error("Price ID is required")
 
-    // 6. Build Session Config
     const sessionConfig = {
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
       success_url: successUrl,
       cancel_url: cancelUrl,
       allow_promotion_codes: true,
-      subscription_data: {
-         trial_period_days: 7, 
-      }
+      subscription_data: { trial_period_days: 7 }
     }
 
-    // 7. Decide Customer Strategy (User vs Guest)
     if (stripeCustomerId) {
         sessionConfig.customer = stripeCustomerId
     } else {
-        // Guest: Let Stripe collect email.
-        // customer_creation: 'always' forces Stripe to create a Customer object 
-        // which our webhook can then use to find the email and invite the user.
         sessionConfig.customer_creation = 'always'
     }
 
-    // 8. Create Session
     const session = await stripe.checkout.sessions.create(sessionConfig)
 
-    // 9. Return URL
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
-    console.error('Function Error:', error)
+    console.error('Handler Error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
