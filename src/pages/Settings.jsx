@@ -1,15 +1,35 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Mail, User, LifeBuoy, Shield } from 'lucide-react'
+import { Mail, User, LifeBuoy, Shield, Lock, Eye, EyeOff } from 'lucide-react'
 
 const Settings = () => {
   const [user, setUser] = useState(null)
+  const [tempPassword, setTempPassword] = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
   
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
+      if (user?.email) {
+          fetchTempPassword(user.email)
+      }
     })
   }, [])
+
+  const fetchTempPassword = async (email) => {
+      // Try to find a temp password for this user
+      const { data, error } = await supabase
+        .from('payment_temp_access')
+        .select('temp_password')
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (data && data.temp_password) {
+          setTempPassword(data.temp_password)
+      }
+  }
 
   return (
     <div className="space-y-8">
@@ -41,6 +61,36 @@ const Settings = () => {
                       <Mail className="w-4 h-4 text-slate-400" />
                       {user?.email || 'Carregando...'}
                    </div>
+                </div>
+
+                <div>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Senha de Acesso</label>
+                   <div className="relative flex items-center">
+                       <div className="w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded text-xs font-bold text-slate-900 font-mono">
+                          <Lock className="w-4 h-4 text-slate-400" />
+                          <span className={showPassword ? "" : "blur-[2px] select-none"}>
+                              {tempPassword ? (showPassword ? tempPassword : "••••••••••••") : (showPassword ? "Oculta (Criptografada)" : "••••••••••••")}
+                          </span>
+                       </div>
+                       <button 
+                         onClick={() => setShowPassword(!showPassword)}
+                         className="absolute right-3 p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                         title={showPassword ? "Ocultar" : "Mostrar"}
+                       >
+                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                       </button>
+                   </div>
+                   {!tempPassword && (
+                       <p className="text-[10px] text-slate-400 mt-1 pl-1">
+                           Sua senha é criptografada e não pode ser exibida. 
+                           <a href="/update-password" className="text-indigo-600 hover:underline ml-1">Redefinir?</a>
+                       </p>
+                   )}
+                   {tempPassword && (
+                       <p className="text-[10px] text-emerald-600 mt-1 pl-1 font-bold">
+                           Senha provisória disponível.
+                       </p>
+                   )}
                 </div>
 
                 <div>

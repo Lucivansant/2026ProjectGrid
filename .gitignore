@@ -28,3 +28,6 @@ dist-ssr
 
 # Legacy files
 legacy/
+
+# Sensitive Documentation & Backend Logic
+docs/
