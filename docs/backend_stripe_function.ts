@@ -3,7 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import Stripe from 'https://esm.sh/stripe@14.10.0?target=deno'
 
-console.log("Stripe Webhook Loaded (Async Version)")
+console.log("Stripe Webhook Loaded (Temp Password Version)")
 
 // --- CONFIGURATION ---
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || ""
@@ -27,32 +27,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 1. Validate Signature
     const signature = req.headers.get('stripe-signature')
     
     if (!signature) {
-      console.error("No Stripe signature found")
       return new Response("No signature", { status: 400 })
     }
 
-    const body = await req.text() // Read raw body
+    const body = await req.text() 
     let event
 
     try {
-      // CRITICAL FIX: Use constructEventAsync for Deno/Edge Runtime
-      // expected the crypto provider to be sync, but in Deno it is async.
       event = await stripe.webhooks.constructEventAsync(body, signature, STRIPE_WEBHOOK_SECRET)
     } catch (err) {
-      console.error(`Webhook signature verification failed: ${err.message}`)
+      console.error(`Signature error: ${err.message}`)
       return new Response(`Signature error: ${err.message}`, { status: 400 })
     }
 
-    // 2. Initialize Admin Client
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
     console.log(`Processing Event: ${event.type}`)
 
-    // 3. Handle Events
     switch (event.type) {
       case 'checkout.session.completed':
         const session = event.data.object
@@ -65,9 +58,6 @@ Deno.serve(async (req) => {
         const subscription = event.data.object
         await handleDowngrade(supabaseAdmin, subscription)
         break
-
-      default:
-        console.log(`Unhandled event type ${event.type}`)
     }
 
     return new Response(JSON.stringify({ received: true }), {
@@ -88,61 +78,69 @@ Deno.serve(async (req) => {
 
 async function handleUpgrade(supabase, session) {
   const email = session.customer_details?.email || session.customer_email
-  const customerId = session.customer // Stripe Customer ID
+  const customerId = session.customer 
   
-  if (!email) {
-      console.error("No email in session")
-      return
-  }
+  if (!email) return
 
-  // Check if user exists (by email)
+  // Check if user exists
   const { data: { users } } = await supabase.auth.admin.listUsers()
   const existingUser = users.find(u => u.email === email)
 
-  // LOGIC:
-  // If user exists -> Update metadata to 'pro'
-  // If new user -> Invite by email with 'pro' metadata
-
   if (existingUser) {
     console.log(`Upgrading existing user: ${email}`)
-    
-    // Attempt to update
-    const { error } = await supabase.auth.admin.updateUserById(
+    await supabase.auth.admin.updateUserById(
       existingUser.id,
       { user_metadata: { plan: 'pro', stripe_customer_id: customerId } }
     )
     
-    if (error) console.error("Error updating user:", error)
-
+    // Log
     await supabase.from('sales_logs').insert({
         customer_email: email,
-        customer_name: session.customer_details?.name || 'User',
+        customer_name: session.customer_details?.name,
         status: 'upgraded',
-        message: `Stripe Upgrade: ${session.id}`,
+        message: `Upgrade (No Pwd): ${session.id}`,
         payload: session
     })
 
   } else {
-    console.log(`Inviting new user: ${email}`)
+    // NEW USER -> Generate Temp Password
+    console.log(`Creating new user with Temp Password: ${email}`)
     
-    const { data, error } = await supabase.auth.admin.inviteUserByEmail(
-      email,
-      {
-        data: { 
+    // Generate simple 8-char password: "Grid-" + 4 random numbers
+    const randomCode = Math.floor(1000 + Math.random() * 9000)
+    const tempPassword = `Grid-${randomCode}`
+
+    const { data: newUser, error } = await supabase.auth.admin.createUser({
+      email: email,
+      password: tempPassword,
+      email_confirm: true, // Auto-confirm
+      user_metadata: { 
           plan: 'pro',
           stripe_customer_id: customerId,
           full_name: session.customer_details?.name,
-        }
       }
-    )
+    })
 
-    if (error) console.error("Error invoking user:", error)
+    if (error) {
+      console.error("Error creating user:", error)
+      return
+    }
+
+    // STORE CREDENTIALS FOR SUCCESS PAGE
+    // We store using session.id as the key, so frontend can fetch it via URL param
+    if (session.id) {
+       await supabase.from('payment_temp_access').insert({
+           session_id: session.id,
+           email: email,
+           temp_password: tempPassword
+       })
+    }
 
     await supabase.from('sales_logs').insert({
         customer_email: email,
         customer_name: session.customer_details?.name,
-        status: 'invited',
-        message: `Stripe Invite: ${session.id}`,
+        status: 'created',
+        message: `New User Created. Pwd: ${tempPassword}`,
         payload: session
     })
   }
@@ -150,28 +148,20 @@ async function handleUpgrade(supabase, session) {
 
 async function handleDowngrade(supabase, subscription) {
   const customerId = subscription.customer
-  
-  // Find user by Stripe Customer ID
-  // Note: List users is limited to 50 by default. In prod, use search or dedicated table.
   const { data: { users } } = await supabase.auth.admin.listUsers()
-  
-  // Try to find matching stripe_customer_id
   const user = users.find(u => u.user_metadata?.stripe_customer_id === customerId)
 
   if (user) {
       console.log(`Downgrading user: ${user.email}`)
       await supabase.auth.admin.updateUserById(
           user.id,
-          { user_metadata: { plan: 'free' } } // Keep customer_id for history
+          { user_metadata: { plan: 'free' } }
       )
-
       await supabase.from('sales_logs').insert({
           customer_email: user.email,
           status: 'canceled',
           message: `Stripe Downgrade`,
           payload: subscription
       })
-  } else {
-      console.log(`No user found for downgrade: ${customerId}`)
   }
 }
