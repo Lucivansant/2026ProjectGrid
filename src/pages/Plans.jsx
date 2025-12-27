@@ -19,20 +19,17 @@ const Plans = ({ isInternal = false }) => {
   }, [])
 
   const handleCheckout = async () => {
-    // 1. Check if user is logged in
+    // 1. Check if user is logged in (Optional now)
     const { data: { user } } = await supabase.auth.getUser()
     
-    if (!user) {
-      // If not logged in, redirect to login with return intent
-      window.location.href = `/login?redirect=/dashboard/plans` // Adjusted for where Plans usually is
-      return
-    }
-
+    // If not logged in, we proceed as Guest (Stripe will collect email)
+    // The webhook will then invite the user to set a password.
+    
     try {
       // 2. Call Edge Function to get Stripe Link
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
-          priceId: 'price_1Qd...', // USER_MUST_UPDATE: Replace with actual Stripe Price ID (e.g., price_1Mc...)
+          priceId: 'price_1SirFJGwcfQqACexzT3eOKlP', // USER_MUST_UPDATE: Replace with actual Stripe Price ID (e.g., price_1Mc...)
           successUrl: `${window.location.origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${window.location.href}`,
         },

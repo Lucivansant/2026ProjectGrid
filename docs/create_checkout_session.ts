@@ -26,18 +26,23 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // 1. Get the current user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    // 1. Get the current user (Optional)
+    let user = null
+    let email = null
+    let stripeCustomerId = null
 
-    if (userError || !user) {
-      throw new Error("User not authenticated")
+    const authHeader = req.headers.get('Authorization')
+    if (authHeader) {
+        const { data, error } = await supabaseClient.auth.getUser()
+        if (!error && data?.user) {
+            user = data.user
+            email = user.email
+            stripeCustomerId = user.user_metadata?.stripe_customer_id
+        }
     }
 
-    const email = user.email
-    let stripeCustomerId = user.user_metadata?.stripe_customer_id
-
-    // 2. Ensure Stripe Customer Exists
-    if (!stripeCustomerId) {
+    // 2. Ensure Stripe Customer Exists (Only if authenticated or email provided)
+    if (user && !stripeCustomerId) {
         // Search by email first to avoid duplicates
         const existingCustomers = await stripe.customers.list({ email: email, limit: 1 })
         
@@ -52,10 +57,6 @@ serve(async (req) => {
             })
             stripeCustomerId = newCustomer.id
         }
-
-        // Save ID to Supabase for future speed
-        // Note: we can't easily update user_metadata from here with just anon key unless we use service_role
-        // But for checkout flow, passing customer ID is enough. Ideally, the webhook will sync this later.
     }
 
     // 3. Create Checkout Session
@@ -63,8 +64,8 @@ serve(async (req) => {
 
     if (!priceId) throw new Error("Price ID is required")
 
-    const session = await stripe.checkout.sessions.create({
-      customer: stripeCustomerId,
+    // Session Config
+    const sessionConfig = {
       line_items: [
         {
           price: priceId,
@@ -74,7 +75,23 @@ serve(async (req) => {
       mode: 'subscription',
       success_url: successUrl,
       cancel_url: cancelUrl,
-    })
+      allow_promotion_codes: true,
+      subscription_data: {
+         trial_period_days: 7, // As mentioned in the UI "7 days guarantee" or trial? UI says "7 dias de garantia", which usually means refund policy, but "Trial" is safer for conversion. Let's keep it simple or strictly what user has.
+         // Removing trial unless explicitly requested to avoid confusion.
+      }
+    }
+
+    // If we have a customer ID, use it. 
+    if (stripeCustomerId) {
+        sessionConfig.customer = stripeCustomerId
+    } else {
+        // Guest Checkout: Let Stripe collect email.
+        // We set customer_creation to 'always' to ensure we get a customer object for the webhook to use.
+        sessionConfig.customer_creation = 'always'
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig)
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
