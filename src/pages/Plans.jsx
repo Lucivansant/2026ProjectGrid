@@ -27,7 +27,7 @@ const Plans = ({ isInternal = false }) => {
     
     try {
       // 2. Call Edge Function to get Stripe Link
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session-ts', {
         body: {
           priceId: 'price_1SirFJGwcfQqACexzT3eOKlP', // USER_MUST_UPDATE: Replace with actual Stripe Price ID (e.g., price_1Mc...)
           successUrl: `${window.location.origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
