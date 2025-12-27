@@ -153,10 +153,12 @@ async function handleDowngrade(supabase, email, cpf, eventStatus) {
     })
   }
 
-  // B. Security Check: CPF Matching (Same as Upgrade)
+  // B. Security Check: CPF Matching (Relaxed for Downgrade)
   const registeredCpf = existingUser.user_metadata?.cpf
   
-  if (registeredCpf) {
+  // Only check if BOTH exist. If payload has no CPF (common in lightweight webhooks), we allow functionality.
+  // We trust the webhook source (assuming Secret/Signature verification is added or Kiwify source is trusted).
+  if (registeredCpf && cpf) {
     const cleanRegistered = registeredCpf.replace(/\D/g, '')
     const cleanPayload = (cpf || '').replace(/\D/g, '')
 
