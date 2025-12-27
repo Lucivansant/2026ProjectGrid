@@ -31,8 +31,14 @@ import {
   FileText,
   X,
   ArrowRight,
-  Scissors
+  Scissors,
+  Folder,
+  Check,
+  AlertTriangle,
+  Plus,
+  Crown
 } from 'lucide-react'
+import { FloorPlanService } from '../lib/floorPlanService'
 
 // Constantes
 const GRID_SIZE = 40 // pixels por célula (ex: 40px = 1 metro na escala padrão)
@@ -43,7 +49,10 @@ const SNAP_THRESHOLD = 10
  * Componente principal do Editor de Plantas
  */
 const FloorPlan = () => {
-  // --- Helper: Snap to Grid or Wall Endpoints ---
+    // Limits Modal State
+    const [limitModalData, setLimitModalData] = useState({ show: false, message: '', isPremium: false })
+
+    // --- Helper: Snap to Grid or Wall Endpoints ---
   const snapToGrid = (val) => Math.round(val / GRID_SIZE) * GRID_SIZE
   
   const getSnappedPoint = (x, y, excludeWallId = null) => {
@@ -163,31 +172,249 @@ const FloorPlan = () => {
     return () => window.removeEventListener('resize', updateSize)
   }, [])
 
-  // Carrega do LocalStorage ao iniciar
+  // --- Persistência com Supabase ---
+  const [currentPlanId, setCurrentPlanId] = useState(null)
+  const [currentProjectName, setCurrentProjectName] = useState('Meu Projeto')
+  const [saveStatus, setSaveStatus] = useState('idle') // idle, saving, saved, error
+  const [projectsList, setProjectsList] = useState([])
+  const [showProjectsList, setShowProjectsList] = useState(false)
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false)
+  
+  // Feedback Visual (Toast)
+  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' })
+
+  const showToast = (message, type = 'success') => {
+      setNotification({ show: true, message, type })
+      setTimeout(() => {
+          setNotification(prev => ({ ...prev, show: false }))
+      }, 3000)
+  }
+
+  // Carrega do Supabase ao iniciar
   useEffect(() => {
-    const saved = localStorage.getItem('projectgrid_floorplan')
-    if (saved) {
+    const loadProject = async () => {
         try {
-            const data = JSON.parse(saved)
-            if (data.walls) setWalls(data.walls)
-            if (data.components) setComponents(data.components)
-            if (data.wires) setWires(data.wires)
-            if (data.dimensionsList) setDimensionsList(data.dimensionsList)
-            if (data.labels) setLabels(data.labels)
-            if (data.arrows) setArrows(data.arrows)
-        } catch (e) {
-            console.error('Erro ao carregar projeto:', e)
+            // Carrega lista de projetos
+            const projects = await FloorPlanService.listFloorPlans()
+            setProjectsList(projects || [])
+
+            if (!projects || projects.length === 0) {
+                // Se não tiver nenhum, FORÇA modal de criação
+                setShowNewProjectModal(true)
+            } else {
+                // Carrega o mais recente (se existir)
+                const project = await FloorPlanService.getMostRecentFloorPlan()
+                if (project && project.data) {
+                    loadProjectData(project.data)
+                    setCurrentPlanId(project.id)
+                    setCurrentProjectName(project.name || 'Meu Projeto')
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao carregar projeto:', error)
         }
     }
+    loadProject()
   }, [])
 
+  const loadProjectData = (data) => {
+      setWalls(data.walls || [])
+      setComponents(data.components || [])
+      setWires(data.wires || [])
+      setDimensionsList(data.dimensionsList || [])
+      setLabels(data.labels || [])
+      setArrows(data.arrows || [])
+      
+      // Limpa seleções e estados temporários
+      setSelectedId(null)
+      setNewWall(null)
+      setNewRoom(null)
+  }
+
+  const handleLoadExistingProject = async (projectSummary) => {
+       try {
+           if (!projectSummary) return
+           
+           // Limpa o canvas primeiro
+           setWalls([])
+           setComponents([])
+           setWires([])
+           setDimensionsList([])
+           setLabels([])
+           setArrows([])
+           
+           // Busca o projeto completo (com os dados JSON)
+           const fullProject = await FloorPlanService.getFloorPlanById(projectSummary.id)
+
+           if (fullProject && fullProject.data) {
+                setTimeout(() => {
+                        loadProjectData(fullProject.data)
+                        setCurrentPlanId(fullProject.id)
+                        setCurrentProjectName(fullProject.name || 'Meu Projeto')
+                        setShowProjectsList(false)
+                }, 50)
+           }
+           
+       } catch(e) {
+           console.error("Erro ao carregar projeto da lista", e)
+           alert("Erro ao carregar projeto: " + e.message)
+       }
+  }
+
+  // Atualiza a lista após salvar (para garantir que nomes/datas estejam atualizados)
+  const refreshProjectsList = async () => {
+      const projects = await FloorPlanService.listFloorPlans()
+      setProjectsList(projects || [])
+      return projects || []
+  }
+
+  const handleNewProject = async () => {
+      // Verifica alterações não salvas
+      if (walls.length > 0 || components.length > 0) {
+          if (!window.confirm('Deseja criar um novo projeto? As alterações não salvas no atual serão perdidas.')) {
+              return
+          }
+      }
+      
+      // Checking Plan Limits
+      try {
+        const { allowed, reason, isPremium } = await FloorPlanService.checkPlanLimits()
+        if (!allowed) {
+            setLimitModalData({ show: true, message: reason, isPremium })
+            return
+        }
+      } catch (e) {
+        console.error("Erro ao verificar limites", e)
+      }
+      
+      // Abre o modal de criação (mesmo do boas-vindas)
+      setShowNewProjectModal(true)
+  }
+
+  const handleForceCreateProject = async (name) => {
+      try {
+          // Cria um projeto vazio
+          const emptyData = { walls: [], components: [], wires: [], dimensionsList: [], labels: [], arrows: [] }
+          const savedProject = await FloorPlanService.saveFloorPlan(emptyData, null, name)
+          
+          if (savedProject) {
+              setCurrentPlanId(savedProject.id)
+              setCurrentProjectName(savedProject.name)
+              setWalls([])
+              setComponents([])
+              setWires([])
+              setDimensionsList([])
+              setLabels([])
+              setArrows([])
+              
+              setShowNewProjectModal(false)
+              refreshProjectsList()
+              showToast('Novo projeto criado!', 'success')
+          }
+      } catch (error) {
+          alert('Erro ao criar projeto: ' + error.message)
+      }
+  }
+
+  const handleDeleteProject = async (project) => {
+      if (!window.confirm(`Tem certeza que deseja excluir o projeto "${project.name}"? Esta ação não pode ser desfeita.`)) {
+          return
+      }
+
+      try {
+          await FloorPlanService.deleteFloorPlan(project.id)
+          
+          showToast('Projeto excluído com sucesso.', 'success')
+
+          // Se o projeto deletado for o atual, limpa a tela
+          if (currentPlanId === project.id) {
+              setWalls([])
+              setComponents([])
+              setWires([])
+              setDimensionsList([])
+              setLabels([])
+              setArrows([])
+              setCurrentPlanId(null)
+              setCurrentProjectName('Novo Projeto')
+              setSaveStatus('idle')
+          }
+          
+          // Atualiza a lista e verifica se sobrou algo
+          const remainingProjects = await refreshProjectsList()
+          
+          if (remainingProjects.length === 0) {
+              // Se não sobrou nada, FORÇA o modal de novo projeto
+              setShowNewProjectModal(true)
+          }
+
+      } catch (error) {
+          console.error('Erro ao excluir projeto:', error)
+          showToast('Erro ao excluir projeto.', 'error')
+          alert('Erro ao excluir projeto: ' + error.message)
+      }
+  }
+
   // Salva automaticamente a cada 5 segundos se houver mudanças
+  // E apenas se já tivermos carregado (ou se o usuário já interagiu)
   useEffect(() => {
-    const saveTimer = setInterval(() => {
-        saveProject()
+    // Evita salvar vazio no boot se não tiver nada
+    if (walls.length === 0 && components.length === 0) return 
+
+    // Se NÃO tem ID (projeto novo não salvo manualmente ainda), NÃO auto-salva para não spammar
+    if (!currentPlanId) return
+
+    const saveTimer = setTimeout(async () => {
+        await handleSave(true) // Passa flag isAutoSave
     }, 5000)
-    return () => clearInterval(saveTimer)
-  }, [walls, components])
+    return () => clearTimeout(saveTimer)
+  }, [walls, components, wires, dimensionsList, labels, arrows]) // Remove currentPlanId from dependency to avoid loop if valid
+
+  const handleSave = async (isAutoSave = false) => {
+      // Se não tiver nada, não salva
+      if (walls.length === 0 && components.length === 0) return
+
+      let name = currentProjectName
+      
+      // Se for novo projeto (sem ID) e for salvamento MANUAL, pede nome
+      if (!currentPlanId && !isAutoSave) {
+          const newName = window.prompt("Nome do Projeto:", currentProjectName)
+          if (!newName) return // Cancelado
+          name = newName
+          setCurrentProjectName(name)
+      } else if (!currentPlanId && isAutoSave) {
+          // Se for auto-save em projeto sem ID, aborta (espera o usuário salvar 1x)
+          return
+      }
+
+      setSaveStatus('saving')
+      try {
+          const floorPlanData = { walls, components, wires, dimensionsList, labels, arrows }
+          const savedProject = await FloorPlanService.saveFloorPlan(floorPlanData, currentPlanId, name)
+          if (savedProject) {
+              setCurrentPlanId(savedProject.id)
+              setSaveStatus('saved')
+              
+              if (!isAutoSave) {
+                  showToast('Projeto salvo com sucesso!', 'success')
+              }
+
+              setTimeout(() => setSaveStatus('idle'), 2000)
+              refreshProjectsList()
+          }
+      } catch (error) {
+          console.error('Erro ao salvar:', error)
+          setSaveStatus('error')
+          
+          if (!isAutoSave) {
+               // Trata erros específicos apenas no manual para não incomodar
+              if (error.message.includes('limite do plano')) {
+                  showToast(error.message, 'error')
+              } else {
+                  showToast('Erro ao salvar!', 'error')
+              }
+          }
+      }
+  }
 
   // --- Copy / Paste Logic ---
   const handleCopy = () => {
@@ -291,11 +518,7 @@ const FloorPlan = () => {
   }, [selectedId, clipboard, components, walls])
 
 
-  const saveProject = () => {
-    const data = { walls, components, wires, dimensionsList, labels, arrows }
-    localStorage.setItem('projectgrid_floorplan', JSON.stringify(data))
-    // Opcional: Feedback visual de salvamento?
-  }
+
 
   const handleExport = () => {
     if (stageRef.current) {
@@ -1568,8 +1791,15 @@ const FloorPlan = () => {
     <div className="flex h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-100 relative" style={{ touchAction: 'none' }}>
       
       {/* Barra de Ferramentas Superior (Horizontal) */}
-      <div className="absolute left-1/2 -translate-x-1/2 top-4 z-10 flex flex-row gap-1 bg-white p-1 rounded-lg shadow-lg border border-slate-200 max-w-[calc(100vw-2rem)] overflow-x-auto items-center">
+      <div className="absolute left-6 top-4 z-10 flex flex-wrap gap-1 bg-white p-1 rounded-lg shadow-lg border border-slate-200 max-w-[calc(100%-3rem)] items-center">
         {/* Zoom Controls */}
+        <ToolButton 
+            active={false} 
+            onClick={handleNewProject} 
+            icon={Plus} 
+            tooltip="Novo Projeto (+)" 
+        />
+        <div className="w-px bg-slate-200 mx-1 self-stretch"></div>
         <ToolButton 
             active={false} 
             onClick={handleZoomIn} 
@@ -1734,6 +1964,19 @@ const FloorPlan = () => {
             onClick={handleExport} 
             icon={Download} 
             tooltip="Exportar Imagem" 
+        />
+        <div className="w-px bg-slate-200 mx-1 self-stretch"></div>
+        <ToolButton 
+            active={false} 
+            onClick={() => handleSave(false)} 
+            icon={Save} 
+            tooltip="Salvar Agora" 
+            className={
+                saveStatus === 'saved' ? "text-emerald-600 bg-emerald-50" :
+                saveStatus === 'error' ? "text-red-600 bg-red-50" :
+                saveStatus === 'saving' ? "text-indigo-600 animate-pulse" :
+                ""
+            }
         />
       </div>
 
@@ -2764,84 +3007,140 @@ const FloorPlan = () => {
               </div>
            </div>
        ) : (
-        <div className="absolute left-2 bottom-4 w-64 bg-white p-4 rounded-lg shadow-lg border border-slate-200">
-           {/* Painel Padrão (Estatísticas) */}
-           <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Resumo</h3>
-           <div className="grid grid-cols-2 gap-2">
-              <div className="bg-slate-50 p-2 rounded text-center">
-                 <div className="text-[10px] font-bold text-slate-400 uppercase">Paredes</div>
-                 <div className="text-lg font-bold text-slate-900">{walls.length}</div>
-              </div>
-              <div className="bg-slate-50 p-2 rounded text-center">
-                 <div className="text-[10px] font-bold text-slate-400 uppercase">Pontos</div>
-                 <div className="text-lg font-bold text-slate-900">{components.length}</div>
-              </div>
-              <div className="bg-slate-50 p-2 rounded text-center">
-                 <div className="text-[10px] font-bold text-slate-400 uppercase">Zoom</div>
-                 <div className="text-lg font-bold text-slate-900">{Math.round(stageScale * 100)}%</div>
-              </div>
-              <div className="col-span-2 bg-emerald-50 p-2 rounded text-center border border-emerald-100">
-                 <div className="flex items-center justify-center gap-2 text-emerald-600 font-bold text-[10px] uppercase">
-                     <Save className="w-3 h-3" />
-                     Salvo automático
-                 </div>
-              </div>
-           </div>
+        <div className="absolute left-6 top-24 w-64 bg-white/90 backdrop-blur-sm p-4 rounded-lg shadow-lg border border-slate-200 z-20">
+            <div className="flex justify-between items-center mb-2">
+                 <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                     <Folder className="w-3 h-3" /> Projetos Salvos
+                 </h3>
+                 <span className="text-[10px] text-slate-400 font-bold">{projectsList.length} PROJETOS</span>
+            </div>
+            
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                {projectsList.length === 0 && (
+                    <div className="text-xs text-slate-400 italic text-center py-2">Nenhum projeto salvo.</div>
+                )}
+                
+                {projectsList.map(p => (
+                    <div key={p.id} className={`flex items-center justify-between group p-2 rounded transition-colors ${currentPlanId === p.id ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-slate-50 border border-transparent'}`}>
+                        <button
+                            onClick={() => handleLoadExistingProject(p)}
+                            className={`text-left text-xs flex-1 truncate ${currentPlanId === p.id ? 'text-indigo-700 font-bold' : 'text-slate-600'}`}
+                            title={p.name || 'Sem nome'}
+                        >
+                            {p.name || `Projeto ${new Date(p.created_at).toLocaleDateString()}`}
+                        </button>
+                        
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                             {currentPlanId === p.id && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1" />}
+                             <button 
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteProject(p)
+                                }}
+                                className="p-1 hover:bg-red-100 text-slate-400 hover:text-red-500 rounded"
+                                title="Excluir Projeto"
+                             >
+                                 <Trash2 className="w-3 h-3" />
+                             </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
+       )}
+
+       {/* Modal de Criação Obrigatória de Primeiro Projeto */}
+       {showNewProjectModal && (
+           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+               <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md border border-slate-200">
+                   <div className="flex flex-col gap-4 text-center">
+                       <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-2">
+                           <Folder className="w-8 h-8 text-indigo-600" />
+                       </div>
+                       <div>
+                           <h2 className="text-xl font-bold text-slate-800">Bem-vindo ao ProjectGrid!</h2>
+                           <p className="text-sm text-slate-500 mt-1">Para começar, precisamos criar seu primeiro projeto.</p>
+                       </div>
+                       
+                       <div className="text-left mt-2">
+                           <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Nome do Projeto</label>
+                           <input 
+                                type="text" 
+                                placeholder="Minha Residência"
+                                className="w-full p-3 border border-slate-300 rounded focus:border-indigo-500 outline-none text-sm font-medium"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && e.target.value.trim()) {
+                                        handleForceCreateProject(e.target.value.trim())
+                                    }
+                                }}
+                                id="first-project-name"
+                           />
+                       </div>
+
+                       <button 
+                            onClick={() => {
+                                const input = document.getElementById('first-project-name')
+                                if (input && input.value.trim()) {
+                                    handleForceCreateProject(input.value.trim())
+                                }
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-2"
+                       >
+                           Criar e Começar <ArrowRight className="w-4 h-4" />
+                       </button>
+                   </div>
+               </div>
+           </div>
        )}
 
        {/* Load Schedule Modal */}
         {showLoadSchedule && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-2xl border border-slate-300 z-50 p-4 max-h-[80vh] overflow-y-auto w-[90%] max-w-5xl">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-800">Quadro de Cargas (QD1)</h2>
-                    <button onClick={() => setShowLoadSchedule(false)} className="text-slate-500 hover:text-red-500">
-                        <X size={24} />
-                    </button>
+                     <h3 className="text-lg font-bold text-slate-700 uppercase flex items-center gap-2">
+                         <FileText className="w-5 h-5" /> Quadro de Cargas (NBR 5410)
+                     </h3>
+                     <button onClick={() => setShowLoadSchedule(false)} className="text-slate-400 hover:text-red-500">
+                         <X className="w-5 h-5" />
+                     </button>
                 </div>
                 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-700 border-collapse border border-slate-300">
-                        <thead className="text-xs text-slate-700 uppercase bg-slate-100">
-                            <tr>
-                                <th className="px-3 py-2 border border-slate-300">Circuito</th>
-                                <th className="px-3 py-2 border border-slate-300">Descrição</th>
-                                <th className="px-3 py-2 border border-slate-300">Esquema</th>
-                                <th className="px-3 py-2 border border-slate-300">Tensão (V)</th>
-                                <th className="px-3 py-2 border border-slate-300">Pot. Total (VA)</th>
-                                <th className="px-3 py-2 border border-slate-300">Pot. Total (W)</th>
-                                <th className="px-3 py-2 border border-slate-300">FCT</th>
-                                <th className="px-3 py-2 border border-slate-300">FCA</th>
-                                <th className="px-3 py-2 border border-slate-300">In (A)</th>
-                                <th className="px-3 py-2 border border-slate-300">Seção (mm²)</th>
-                                <th className="px-3 py-2 border border-slate-300">Disj (A)</th>
-                                <th className="px-3 py-2 border border-slate-300">Status</th>
+                <table className="w-full text-xs text-left border-collapse">
+                    <thead>
+                        <tr className="bg-slate-100 text-slate-600 uppercase tracking-wider">
+                            <th className="p-2 border border-slate-200">Circuito</th>
+                            <th className="p-2 border border-slate-200">Descrição</th>
+                            <th className="p-2 border border-slate-200">Esquema</th>
+                            <th className="p-2 border border-slate-200">Tensão (V)</th>
+                            <th className="p-2 border border-slate-200">Potência (W)</th>
+                            <th className="p-2 border border-slate-200">Ib (A)</th>
+                            <th className="p-2 border border-slate-200">Disjuntor (A)</th>
+                            <th className="p-2 border border-slate-200">Seção (mm²)</th>
+                             <th className="p-2 border border-slate-200">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {calculateLoadSchedule().map(row => (
+                            <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                <td className="p-2 border border-slate-200 font-bold text-center">{row.id}</td>
+                                <td className="p-2 border border-slate-200">{row.description}</td>
+                                <td className="p-2 border border-slate-200">{row.scheme}</td>
+                                <td className="p-2 border border-slate-200">{row.voltage}</td>
+                                <td className="p-2 border border-slate-200">{row.totalW}</td>
+                                <td className="p-2 border border-slate-200">{row.Ib}</td>
+                                <td className="p-2 border border-slate-200 font-bold text-indigo-600">{row.breaker} A</td>
+                                <td className="p-2 border border-slate-200 font-bold text-emerald-600">{row.diam} mm²</td>
+                                <td className={`p-2 border border-slate-200 font-bold ${row.status === 'OK' ? 'text-emerald-500' : 'text-red-500'}`}>{row.status}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {calculateLoadSchedule().map((row, i) => (
-                                <tr key={i} className="bg-white border-b hover:bg-slate-50">
-                                    <td className="px-3 py-2 border border-slate-300 font-bold text-center">{row.id}</td>
-                                    <td className="px-3 py-2 border border-slate-300">{row.description}</td>
-                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.scheme}</td>
-                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.voltage} V</td>
-                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.totalVA}</td>
-                                    <td className="px-3 py-2 border border-slate-300 text-center font-bold">{row.totalW}</td>
-                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.factor.toFixed(2)}</td>
-                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.fca.toFixed(2)}</td>
-                                    <td className="px-3 py-2 border border-slate-300 text-center text-slate-500">{row.Ib}</td>
-                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.diam}</td>
-                                    <td className="px-3 py-2 border border-slate-300 text-center">{row.breaker}</td>
-                                    <td className={`px-3 py-2 border border-slate-300 text-center font-bold ${row.status.includes('ERRO') ? 'text-red-500' : 'text-green-600'}`}>{row.status}</td>
-                                </tr>
-                            ))}
-                            {calculateLoadSchedule().length === 0 && (
-                                <tr>
-                                    <td colSpan="12" className="px-6 py-4 text-center text-slate-500">
-                                        Nenhum circuito encontrado. Adicione componentes e defina os circuitos.
-                                    </td>
-                                </tr>
-                            )}
+                        ))}
+                        {calculateLoadSchedule().length === 0 && (
+                            <tr>
+                                <td colSpan="9" className="p-4 text-center text-slate-400 italic">
+                                    Nenhum circuito encontrado. Adicione componentes e defina os circuitos.
+                                </td>
+                            </tr>
+                        )}
                         </tbody>
                         <tfoot className="font-bold bg-slate-100">
                              <tr>
@@ -2856,6 +3155,58 @@ const FloorPlan = () => {
                              </tr>
                         </tfoot>
                     </table>
+            </div>
+        )}
+
+        {/* Floating Notification Toast */}
+        <div className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 transition-all duration-500 z-[100] ${notification.show ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'}`}>
+            <div className={`px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border ${
+                notification.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 
+                notification.type === 'error' ? 'bg-red-600 border-red-500 text-white' : 
+                'bg-slate-800 border-slate-700 text-white'
+            }`}>
+               {notification.type === 'success' && <div className="bg-white/20 p-1 rounded-full"><Check className="w-4 h-4" /></div>}
+               {notification.type === 'error' && <div className="bg-white/20 p-1 rounded-full"><AlertTriangle className="w-4 h-4" /></div>}
+               <span className="font-medium text-sm">{notification.message}</span>
+            </div>
+        </div>
+
+        {/* Limit Reached Modal */}
+        {limitModalData.show && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-300">
+                    <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-center">
+                        <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                            <Crown className="w-8 h-8 text-white" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-1">Limite Atingido!</h3>
+                        <p className="text-indigo-100 text-sm">Você atingiu o limite do seu plano atual.</p>
+                    </div>
+                    <div className="p-6">
+                        <p className="text-slate-600 text-center mb-6 leading-relaxed">
+                            {limitModalData.message} <br/>
+                            Faça um upgrade para criar projetos ilimitados e desbloquear todos os recursos!
+                        </p>
+                        
+                        <div className="flex flex-col gap-3">
+                            <button 
+                                onClick={() => {
+                                    // Redirecionamento simulado (ou usar navigate se houver router)
+                                    window.location.href = '/plans.html' // Assumindo rota de planos
+                                    // Se for SPA: navigate('/plans')
+                                }}
+                                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Crown className="w-5 h-5" /> Fazer Upgrade Agora
+                            </button>
+                            <button 
+                                onClick={() => setLimitModalData({ ...limitModalData, show: false })}
+                                className="w-full py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl transition-colors"
+                            >
+                                Talvez depois
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         )}
