@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Mail, User, LifeBuoy, Shield, Lock, Eye, EyeOff } from 'lucide-react'
+import { Mail, User, LifeBuoy, Shield, Lock, Eye, EyeOff, MessageCircle, Crown } from 'lucide-react'
 
 const Settings = () => {
   const [user, setUser] = useState(null)
@@ -17,7 +17,6 @@ const Settings = () => {
   }, [])
 
   const fetchTempPassword = async (email) => {
-      // Try to find a temp password for this user
       const { data, error } = await supabase
         .from('payment_temp_access')
         .select('temp_password')
@@ -30,6 +29,8 @@ const Settings = () => {
           setTempPassword(data.temp_password)
       }
   }
+
+  const currentPlan = user?.user_metadata?.plan === 'pro' ? 'PRO' : 'FREE'
 
   return (
     <div className="space-y-8">
@@ -55,6 +56,20 @@ const Settings = () => {
              </div>
 
              <div className="space-y-6">
+                
+                {/* PLANO ATUAL */}
+                <div>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Plano Atual</label>
+                   <div className={`flex items-center gap-3 p-3 border rounded text-sm font-black tracking-widest ${
+                       currentPlan === 'PRO' 
+                       ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
+                       : 'bg-slate-50 border-slate-200 text-slate-500'
+                   }`}>
+                      <Crown className={`w-4 h-4 ${currentPlan === 'PRO' ? 'fill-indigo-700' : ''}`} />
+                      {currentPlan}
+                   </div>
+                </div>
+
                 <div>
                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">E-mail Registrado</label>
                    <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded text-sm font-bold text-slate-900 font-mono">
@@ -112,8 +127,8 @@ const Settings = () => {
 
              <div className="relative z-10">
                 <div className="flex items-center gap-4 mb-8">
-                   <div className="w-12 h-12 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-white">
-                      <LifeBuoy className="w-6 h-6" />
+                   <div className="w-12 h-12 rounded-lg bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                      <MessageCircle className="w-6 h-6" />
                    </div>
                    <div>
                       <h2 className="text-sm font-black text-white uppercase tracking-widest">Central de Suporte</h2>
@@ -122,18 +137,21 @@ const Settings = () => {
                 </div>
 
                 <p className="text-sm text-slate-300 leading-relaxed mb-8">
-                   Nossa equipe técnica especializada está pronta para tirar suas dúvidas sobre dimensionamentos, levantamentos ou uso da plataforma.
+                   Nossa equipe técnica especializada está pronta para tirar suas dúvidas sobre dimensionamentos, levantamentos ou uso da plataforma através do WhatsApp.
                 </p>
 
                 <div className="space-y-4">
                    <a 
-                     href="mailto:suporte@projectgrid.com.br" 
-                     className="block w-full text-center bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-lg uppercase tracking-widest text-xs transition-colors"
+                     href="https://wa.me/5567996960056" 
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-lg uppercase tracking-widest text-xs transition-colors flex items-center justify-center gap-2"
                    >
-                     Enviar E-mail
+                     <MessageCircle className="w-4 h-4" />
+                     Chamar no WhatsApp
                    </a>
                    <p className="text-center text-[10px] text-white/30 uppercase tracking-widest">
-                      Tempo médio de resposta: 24h úteis
+                      Atendimento Humanizado
                    </p>
                 </div>
              </div>
