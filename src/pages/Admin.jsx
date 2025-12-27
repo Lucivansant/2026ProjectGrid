@@ -170,6 +170,25 @@ const Admin = () => {
     setLoading(false)
   }
 
+  /* Exclui TODOS os logs de auditoria */
+  const deleteAllSalesLogs = async () => {
+   if (!confirm('PERIGO: Isso limpará TODO o histórico de auditoria de vendas.\n\nEssa ação não pode ser desfeita.\n\nTem certeza absoluta?')) return
+   
+   setLoading(true)
+   // Deleta tudo sem filtro (eq)
+   const { error } = await supabase.from('sales_logs').delete().neq('id', 0) // .neq('id', 0) é um hack comum no Supabase client para "deletar tudo" seguro, ou passar filtro vazio se permitido.
+   // Melhor abordagem: usar .delete().gt('id', 0) ou filtro que pegue tudo.
+   // Mas como RLS policy é "using (true)", .delete().neq('id', -1) funciona.
+
+   if (error) {
+     alert('Erro ao limpar histórico: ' + error.message)
+   } else {
+     alert('Histórico de auditoria limpo com sucesso.')
+     loadAdminData()
+   }
+   setLoading(false)
+  }
+
   const deleteUser = async (userId, userEmail) => {
     if (!confirm(`ATENÇÃO: Você está prestes a excluir o usuário ${userEmail}.\n\nIsso apagará TODOS os dados (Projetos, Clientes, etc) e a conta de acesso.\n\nTem certeza absoluta?`)) return
 
@@ -415,8 +434,19 @@ const Admin = () => {
             {/* Histórico de Vendas (Sales Logs) */}
             <section className="bg-white rounded border border-slate-200 shadow-xs overflow-hidden">
                <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Auditoria de Vendas (Kiwify)</h3>
-                  <Activity className="w-4 h-4 text-slate-300" />
+                  <div className="flex items-center gap-2">
+                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Auditoria de Vendas (Kiwify)</h3>
+                     <Activity className="w-4 h-4 text-slate-300" />
+                  </div>
+                  
+                  {/* Botão Lixeira Universal */}
+                  <button 
+                     onClick={deleteAllSalesLogs}
+                     className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all active:scale-95"
+                     title="Limpar Todo o Histórico"
+                  >
+                     <Trash2 className="w-5 h-5" />
+                  </button>
                </div>
                <div className="p-0">
                   <table className="w-full text-left border-collapse">
