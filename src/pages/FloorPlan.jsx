@@ -3192,7 +3192,7 @@ const FloorPlan = () => {
                             <button 
                                 onClick={() => {
                                     // Redirecionamento simulado (ou usar navigate se houver router)
-                                    window.location.href = '/plans.html' // Assumindo rota de planos
+                                    window.location.href = '/dashboard/plans' // Assumindo rota de planos
                                     // Se for SPA: navigate('/plans')
                                 }}
                                 className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
