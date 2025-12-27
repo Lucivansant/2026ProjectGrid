@@ -156,6 +156,38 @@ const Admin = () => {
     loadAdminData()
   }
 
+  const deleteSalesLog = async (id) => {
+    if (!confirm('Tem certeza que deseja apagar este log de auditoria?')) return
+    
+    setLoading(true)
+    const { error } = await supabase.from('sales_logs').delete().eq('id', id)
+    
+    if (error) {
+      alert('Erro ao excluir log: ' + error.message)
+    } else {
+      loadAdminData()
+    }
+    setLoading(false)
+  }
+
+  const deleteUser = async (userId, userEmail) => {
+    if (!confirm(`ATENÇÃO: Você está prestes a excluir o usuário ${userEmail}.\n\nIsso apagará TODOS os dados (Projetos, Clientes, etc) e a conta de acesso.\n\nTem certeza absoluta?`)) return
+
+    setLoading(true)
+    // Tenta chamar uma função RPC segura (admin_delete_user)
+    // O usuário precisará criar essa função no Supabase
+    const { error } = await supabase.rpc('admin_delete_user', { user_id: userId })
+
+    if (error) {
+      console.error('Erro ao excluir usuário:', error)
+      alert('Erro ao excluir usuário. Verifique se a função "admin_delete_user" existe no Supabase.\n\nDetalhe: ' + error.message)
+    } else {
+      alert(`Usuário ${userEmail} removido com sucesso.`)
+      loadAdminData()
+    }
+    setLoading(false)
+  }
+
   if (!isAdmin) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center animate-in fade-in zoom-in-95 duration-700">
@@ -353,9 +385,19 @@ const Admin = () => {
                      </thead>
                      <tbody className="divide-y divide-slate-100">
                         {userMetrics.map((u, i) => (
-                           <tr key={i} className="hover:bg-slate-50 transition-colors">
+                           <tr key={i} className="hover:bg-slate-50 transition-colors group">
                               <td className="px-8 py-4">
-                                 <span className="text-xs font-bold text-slate-900">{u.user_email}</span>
+                                 <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-900">{u.user_email}</span>
+                                    {/* Botão de Excluir Usuário (Invisível até hover) */}
+                                    <button 
+                                        onClick={() => deleteUser(u.user_id || u.id, u.user_email)}
+                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                        title="Excluir Usuário"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                 </div>
                               </td>
                               <td className="px-6 py-4 text-center font-mono text-xs font-bold text-indigo-600">
                                  {u.client_count}
@@ -414,6 +456,15 @@ const Admin = () => {
                                  </td>
                                  <td className="px-6 py-3 text-[10px] font-medium text-slate-500">
                                     {log.message}
+                                 </td>
+                                 <td className="px-4 py-3 text-right">
+                                    <button 
+                                        onClick={() => deleteSalesLog(log.id)}
+                                        className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                                        title="Apagar Log"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
                                  </td>
                               </tr>
                            ))
