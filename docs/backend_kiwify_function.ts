@@ -31,6 +31,7 @@ serve(async (req) => {
 
     // 2. Extract Event Info
     const eventStatus = payload.order_status || payload.status // Kiwify sometimes varies
+    const orderId = payload.order_id || payload.id // Extract Order ID
     const customer = payload.Customer || {}
     const email = customer.email
     const cpf = customer.cpf
@@ -52,9 +53,9 @@ serve(async (req) => {
 
     // 3. Routing Logic based on Event
     if (eventStatus === 'paid' || eventStatus === 'approved') {
-      return await handleUpgrade(supabaseAdmin, email, cpf, customer)
+      return await handleUpgrade(supabaseAdmin, email, cpf, orderId, customer)
     } else if (['refunded', 'chargedback', 'canceled', 'subscription_canceled', 'subscription_late'].includes(eventStatus)) {
-      return await handleDowngrade(supabaseAdmin, email, cpf, eventStatus)
+      return await handleDowngrade(supabaseAdmin, email, cpf, orderId, eventStatus)
     } else {
       return new Response(JSON.stringify({ message: "Event ignored", status: eventStatus }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -73,7 +74,7 @@ serve(async (req) => {
 
 // --- ACTIONS ---
 
-async function handleUpgrade(supabase, email, cpf, customerData) {
+async function handleUpgrade(supabase, email, cpf, orderId, customerData) {
   // A. Check if user exists
   const { data: { users }, error } = await supabase.auth.admin.listUsers()
   const existingUser = users.find(u => u.email === email)
@@ -109,7 +110,7 @@ async function handleUpgrade(supabase, email, cpf, customerData) {
     // C. Upgrade User
     const { error: updateError } = await supabase.auth.admin.updateUserById(
       existingUser.id,
-      { user_metadata: { plan: 'pro', cpf: cpf } } // Store CPF if not already set, and upgrade plan
+      { user_metadata: { plan: 'pro', cpf: cpf, kiwify_order_id: orderId } } // Store CPF and Order ID
     )
     
     if (updateError) throw updateError
@@ -142,7 +143,7 @@ async function handleUpgrade(supabase, email, cpf, customerData) {
   }
 }
 
-async function handleDowngrade(supabase, email, cpf, eventStatus) {
+async function handleDowngrade(supabase, email, cpf, orderId, eventStatus) {
   const { data: { users } } = await supabase.auth.admin.listUsers()
   const existingUser = users.find(u => u.email === email)
 
@@ -178,10 +179,30 @@ async function handleDowngrade(supabase, email, cpf, eventStatus) {
     }
   }
 
-  // Set plan back to free
+  // C. Security Check: Order ID Matching
+  const registeredOrderId = existingUser.user_metadata?.kiwify_order_id
+  
+  if (registeredOrderId && orderId) {
+      if (registeredOrderId.toString() !== orderId.toString()) {
+          console.error(`Security Block (Downgrade): Order ID Mismatch for ${email}. Stored: ${registeredOrderId}, Incoming: ${orderId}`)
+          
+          await supabase.from('sales_logs').insert({
+            customer_email: email,
+            status: 'blocked',
+            message: `Order ID Mismatch: stored ${registeredOrderId} vs incoming ${orderId}`
+          })
+          
+          return new Response(JSON.stringify({ error: "Security Block: Order ID verification failed" }), {
+             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+             status: 403 
+          })
+      }
+  }
+
+  // Set plan back to free and remove Order ID (optional, but cleaner)
   const { error } = await supabase.auth.admin.updateUserById(
     existingUser.id,
-    { user_metadata: { plan: 'free' } }
+    { user_metadata: { plan: 'free', kiwify_order_id: null } }
   )
 
   if (error) throw error
