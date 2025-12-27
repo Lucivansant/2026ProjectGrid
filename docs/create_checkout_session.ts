@@ -1,11 +1,11 @@
-// Serves HTTP requests via Deno
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+// Setup for Supabase Edge Functions with Deno.serve (Native)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import Stripe from 'https://esm.sh/stripe@12.0.0?target=deno'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") || ""
@@ -14,19 +14,21 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
   httpClient: Stripe.createFetchHttpClient(),
 })
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // 1. Handle CORS Preflight (OPTIONS request)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    // 2. Initialize Supabase Client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // 1. Get the current user (Optional)
+    // 3. Get User (Optional - Guest Checkout Logic)
     let user = null
     let email = null
     let stripeCustomerId = null
@@ -41,7 +43,7 @@ serve(async (req) => {
         }
     }
 
-    // 2. Ensure Stripe Customer Exists (Only if authenticated or email provided)
+    // 4. Ensure Stripe Customer Exists (Only if authenticated)
     if (user && !stripeCustomerId) {
         // Search by email first to avoid duplicates
         const existingCustomers = await stripe.customers.list({ email: email, limit: 1 })
@@ -59,12 +61,12 @@ serve(async (req) => {
         }
     }
 
-    // 3. Create Checkout Session
+    // 5. Parse Request Body
     const { priceId, successUrl, cancelUrl } = await req.json()
 
     if (!priceId) throw new Error("Price ID is required")
 
-    // Session Config
+    // 6. Build Session Config
     const sessionConfig = {
       line_items: [
         {
@@ -77,29 +79,31 @@ serve(async (req) => {
       cancel_url: cancelUrl,
       allow_promotion_codes: true,
       subscription_data: {
-         trial_period_days: 7, // As mentioned in the UI "7 days guarantee" or trial? UI says "7 dias de garantia", which usually means refund policy, but "Trial" is safer for conversion. Let's keep it simple or strictly what user has.
-         // Removing trial unless explicitly requested to avoid confusion.
+         trial_period_days: 7, 
       }
     }
 
-    // If we have a customer ID, use it. 
+    // 7. Decide Customer Strategy (User vs Guest)
     if (stripeCustomerId) {
         sessionConfig.customer = stripeCustomerId
     } else {
-        // Guest Checkout: Let Stripe collect email.
-        // We set customer_creation to 'always' to ensure we get a customer object for the webhook to use.
+        // Guest: Let Stripe collect email.
+        // customer_creation: 'always' forces Stripe to create a Customer object 
+        // which our webhook can then use to find the email and invite the user.
         sessionConfig.customer_creation = 'always'
     }
 
+    // 8. Create Session
     const session = await stripe.checkout.sessions.create(sessionConfig)
 
+    // 9. Return URL
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
-    console.error(error)
+    console.error('Function Error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
