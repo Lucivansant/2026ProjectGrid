@@ -18,34 +18,23 @@ const Plans = ({ isInternal = false }) => {
     })
   }, [])
 
-  const handleCheckout = async () => {
-    // 1. Check if user is logged in (Optional now)
-    const { data: { user } } = await supabase.auth.getUser()
+  const handleCheckout = () => {
+    // STRATEGY: Direct Link (Simpler, Robust)
+    // We direct the user to the Stripe Payment Link created in the Dashboard.
+    // Stripe handles the rest. The webhook will invite the user.
     
-    // If not logged in, we proceed as Guest (Stripe will collect email)
-    // The webhook will then invite the user to set a password.
+    // TODO: USER_MUST_UPDATE -> Paste your Stripe Payment Link here!
+    const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_4gM4gz1K30178AqaFbeIw00" 
     
-    try {
-      // 2. Call Edge Function to get Stripe Link
-      const { data, error } = await supabase.functions.invoke('create-checkout-session-ts', {
-        body: {
-          priceId: 'price_1SirFJGwcfQqACexzT3eOKlP', // USER_MUST_UPDATE: Replace with actual Stripe Price ID (e.g., price_1Mc...)
-          successUrl: `${window.location.origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: `${window.location.href}`,
-        },
-      })
-
-      if (error) throw error
-      if (data?.url) {
-        window.location.href = data.url
-      } else {
-        throw new Error('No checkout URL returned')
-      }
-
-    } catch (error) {
-      console.error('Checkout error:', error)
-      alert('Erro ao iniciar pagamento: ' + error.message)
+    // Safety check removed since we have a valid link now
+    /*
+    if (STRIPE_PAYMENT_LINK.includes("test_...")) {
+      alert("⚠️ COLOQUE SEU LINK DO STRIPE NO ARQUIVO Plans.jsx (Linha ~26)")
+      return
     }
+    */
+
+    window.location.href = STRIPE_PAYMENT_LINK
   }
 
   return (

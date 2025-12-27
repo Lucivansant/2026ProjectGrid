@@ -16,7 +16,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 
 import UpdatePassword from './pages/UpdatePassword'
-import ThankYou from './pages/ThankYou'
+import Success from './pages/Success'
 
 function App() {
   return (
@@ -28,7 +28,8 @@ function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/plans" element={<Plans />} />
         <Route path="/update-password" element={<UpdatePassword />} />
-        <Route path="/thank-you" element={<ThankYou />} />
+        {/* <Route path="/thank-you" element={<ThankYou />} /> */}
+        <Route path="/success" element={<Success />} />
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
