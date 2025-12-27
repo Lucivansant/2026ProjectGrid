@@ -18,10 +18,37 @@ const Plans = ({ isInternal = false }) => {
     })
   }, [])
 
-  const handleCheckout = () => {
-    const baseUrl = 'https://pay.kiwify.com.br/vLsDQRi'
-    const finalUrl = userEmail ? `${baseUrl}?email=${userEmail}` : baseUrl
-    window.open(finalUrl, '_blank')
+  const handleCheckout = async () => {
+    // 1. Check if user is logged in
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      // If not logged in, redirect to login with return intent
+      window.location.href = `/login?redirect=/dashboard/plans` // Adjusted for where Plans usually is
+      return
+    }
+
+    try {
+      // 2. Call Edge Function to get Stripe Link
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          priceId: 'price_1Qd...', // USER_MUST_UPDATE: Replace with actual Stripe Price ID (e.g., price_1Mc...)
+          successUrl: `${window.location.origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${window.location.href}`,
+        },
+      })
+
+      if (error) throw error
+      if (data?.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error('No checkout URL returned')
+      }
+
+    } catch (error) {
+      console.error('Checkout error:', error)
+      alert('Erro ao iniciar pagamento: ' + error.message)
+    }
   }
 
   return (
