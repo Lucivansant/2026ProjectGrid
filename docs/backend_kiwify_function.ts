@@ -81,12 +81,9 @@ async function handleUpgrade(supabase, email, cpf, orderId, customerData) {
 
   if (existingUser) {
     // B. Security Check: CPF Matching
-    // Fetch user's current metadata to see if they already have a CPF set
-    // NOTE: This assumes you store CPF in user_metadata. If it's in a 'profiles' table, query that instead.
     const registeredCpf = existingUser.user_metadata?.cpf
     
     if (registeredCpf) {
-      // Clean CPFs for comparison (remove punctuation)
       const cleanRegistered = registeredCpf.replace(/\D/g, '')
       const cleanPayload = (cpf || '').replace(/\D/g, '')
 
@@ -128,6 +125,7 @@ async function handleUpgrade(supabase, email, cpf, orderId, customerData) {
         data: { 
           plan: 'pro',
           cpf: cpf,
+          kiwify_order_id: orderId, // Store Order ID for new users too
           full_name: customerData.full_name,
           mobile: customerData.mobile
         }
